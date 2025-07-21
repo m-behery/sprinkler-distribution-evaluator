@@ -104,7 +104,7 @@ def load_sprinkler_distribution(filepath, resolution):
     CSV columns:
       0: x-coordinate (meters)
       1: y-coordinate (meters)
-      2: precipitation (mm/h)
+      2: precipitation (e.g., mm/h or L/m²)
 
     Args:
         filepath (str): Path to CSV file.

@@ -8,14 +8,19 @@ Created on Wed Jul 23 01:59:18 2025
 from model import Model
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtProperty
 import numpy as np
+from argparse import Namespace
+from helper import namespace_equal
 
 class ViewModel(QObject):
     
-    resolution__changed      = pyqtSignal(int)
-    zone_dim_meters__changed = pyqtSignal(tuple)
-    config_meters__changed    = pyqtSignal(tuple)
-    csv_filepath__changed     = pyqtSignal(str)
-    Pr_table__changed        = pyqtSignal(object)
+    resolution__changed        = pyqtSignal(int)
+    zone_dim_meters__changed   = pyqtSignal(tuple)
+    config_meters__changed      = pyqtSignal(tuple)
+    csv_filepath__changed       = pyqtSignal(str)
+    Pr_table__changed          = pyqtSignal(object)
+    evaluation_result__changed = pyqtSignal(object)
+    autowrite_config__changed   = pyqtSignal(bool)
+    autoeval__changed          = pyqtSignal(bool)
     
     def __init__(self, model:Model):
         super().__init__()
@@ -41,7 +46,7 @@ class ViewModel(QObject):
             self._model.zone_dim_meters = value
             self.zone_dim_meters__changed.emit(value)
             
-    zone_dim_meters = pyqtProperty('QVariant', fget=get__zone_dim_meters,
+    zone_dim_meters = pyqtProperty(tuple, fget=get__zone_dim_meters,
                                    fset=set__zone_dim_meters,
                                    notify=zone_dim_meters__changed)
     
@@ -53,9 +58,9 @@ class ViewModel(QObject):
             self._model.config_meters = value
             self.config_meters__changed.emit(value)
             
-    config_meters = pyqtProperty('QVariant', fget=get__config_meters,
-                                 fset=set__config_meters,
-                                 notify=config_meters__changed)
+    config_meters = pyqtProperty(tuple, fget=get__config_meters,
+                                fset=set__config_meters,
+                                notify=config_meters__changed)
     
     def get__csv_filepath(self):
         return self._model.csv_filepath
@@ -81,3 +86,40 @@ class ViewModel(QObject):
     Pr_table = pyqtProperty('QVariant', fget=get__Pr_table,
                             fset=set__Pr_table,
                             notify=Pr_table__changed)
+    
+    def get__evaluation_result(self):
+        return self._model.evaluation_result
+    
+    def set__evaluation_result(self, value:Namespace):
+        if not namespace_equal(self._model.evaluation_result, value):
+            self._model.evaluation_result = value
+            self.evaluation_result__changed.emit(value)
+    
+    evaluation_result = pyqtProperty('QVariant', fget=get__evaluation_result,
+                                     fset=set__evaluation_result,
+                                     notify=evaluation_result__changed)
+    
+    def get__autowrite_config(self):
+        return self._model.autowrite_config
+    
+    def set__autowrite_config(self, value:bool):
+        if self._model.autowrite_config != value:
+            self._model.autowrite_config = value
+            self.autowrite_config__changed.emit(value)
+    
+    autowrite_config = pyqtProperty(bool, fget=get__autowrite_config,
+                                   fset=set__autowrite_config,
+                                   notify=autowrite_config__changed)
+    
+    def get__autoeval(self):
+        return self._model.autoeval
+    
+    def set__autoeval(self, value:bool):
+        if self._model.autoeval != value:
+            self._model.autoeval = value
+            self.autoeval__changed.emit(value)
+    
+    autoeval = pyqtProperty(bool, fget=get__autoeval,
+                            fset=set__autoeval,
+                            notify=autoeval__changed)
+    

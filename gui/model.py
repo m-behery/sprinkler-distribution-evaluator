@@ -8,97 +8,28 @@ Created on Tue Jul 22 01:25:01 2025
 from sprinklers import run_simulation
 from argparse import Namespace
 import numpy as np
-from helper import INIParser
+from helper import INIParser, namespace_equal
 import logging
 from functools import wraps
 
 class Model:
     
-# =============================================================================
-#     def __init__(self, resolution, zone_dim_meters, config_meters, csv_filepath):
-#         
-#         self._autosave = False
-#         
-#         self._resolution = resolution
-#         self._zone_dim_meters = zone_dim_meters
-#         self._config_meters = config_meters
-#         
-#         self._Pr_table = None
-#         self._evaluation_result = None
-#         
-#         self.csv_filepath = csv_filepath
-# =============================================================================
-    
-    def __init__(self):
+    def __init__(self, resolution, zone_dim_meters, config_meters, csv_filepath):
         
-        self._parser = INIParser()
-        self._parser.read()
-        
-        self._autowrite_config = False
-        self._autoeval = False
-        
-        self._resolution = self._parser.getint('Display', 'RESOLUTION')
-        self._zone_dim_meters = self._parser.gettuple('Sprinklers', 'ZONE_DIM_METERS')
-        self._config_meters = self._parser.gettuple('Sprinklers', 'CONFIG_METERS')
-        
+        self._resolution = resolution
+        self._zone_dim_meters = zone_dim_meters
+        self._config_meters = config_meters
+        self._csv_filepath = None
         self._Pr_table = None
         self._evaluation_result = None
         
-        self.csv_filepath = self._parser.clean_inline_get('Sprinklers', 'CSV_FILEPATH')
-        
-    def autosync(method):
-        @wraps(method)
-        def wrapper(self, *args, **kwargs):
-            result = method(self, *args, **kwargs)
-            if getattr(self, 'autoeval', False):
-                self.evaluate()
-                logging.debug(f"Auto-evaluated after `{method.__name__}`")
-            if getattr(self, 'autowrite_config', False):
-                self.write_config()
-                logging.debug(f"Auto-wrote configuration after `{method.__name__}`")
-            return result
-        return wrapper
-        
-    @property
-    def parser(self):
-        return self._parser
-        
-    @property
-    def autowrite_config(self):
-        return self._autowrite_config
-        
-    @autowrite_config.setter
-    def autowrite_config(self, value:bool):
-        self._autowrite_config = value
-        
-    @property
-    def autoeval(self):
-        return self._autoeval
-        
-    @autoeval.setter
-    def autoeval(self, value:bool):
-        self._autoeval = value
-    
-    def update(self):
-        if self.autoeval:
-            self.evaluate()
-            
-        if self.autowrite_config:
-            self.write_config()
+        self.csv_filepath = csv_filepath
     
     def evaluate(self):
         self.evaluation_result = run_simulation(self.resolution,
                                                 self.zone_dim_meters,
                                                 self.config_meters,
                                                 self.Pr_table)
-        
-    def write_config(self):
-        serialize_floats = lambda floats: ', '.join(map(str, floats))
-        self.parser.set('Display', 'RESOLUTION', str(self.resolution))
-        self.parser.set('Sprinklers', 'ZONE_DIM_METERS', serialize_floats(self.zone_dim_meters))
-        self.parser.set('Sprinklers', 'CONFIG_METERS', serialize_floats(self.config_meters))
-        self.parser.set('Sprinklers', 'CSV_FILEPATH', self.csv_filepath)
-        self.parser.write()
     
     @property
     def evaluation_result(self):
@@ -106,55 +37,60 @@ class Model:
     
     @evaluation_result.setter
     def evaluation_result(self, value:Namespace):
-        self._evaluation_result = value
+        if not namespace_equal(self._evaluation_result, value):
+            self._evaluation_result = value
+            self.evaluate()
         
     @property
     def resolution(self):
         return self._resolution
     
-    @autosync
     @resolution.setter
     def resolution(self, value:int):
-        self._resolution = value
+        if self._resolution != value:
+            self._resolution = value
+            self.evaluate()
         
     @property
     def zone_dim_meters(self):
         return self._zone_dim_meters
     
-    @autosync
     @zone_dim_meters.setter
     def zone_dim_meters(self, value:tuple):
-        self._zone_dim_meters = value
+        if self._zone_dim_meters != value:
+            self._zone_dim_meters = value
+            self.evaluate()
         
     @property
     def config_meters(self):
         return self._config_meters
     
-    @autosync
     @config_meters.setter
     def config_meters(self, value:tuple):
-        self._config_meters = value
+        if self._config_meters != value:
+            self._config_meters = value
+            self.evaluate()
         
     @property
     def csv_filepath(self):
         return self._csv_filepath
     
-    @autosync
     @csv_filepath.setter
     def csv_filepath(self, value:str):
-        self._csv_filepath = value
-        self._Pr_table = self.read_csv(value)
+        if self._csv_filepath != value:
+            self._csv_filepath = value
+            self.Pr_table = self.read_csv(value)
     
     @property
     def Pr_table(self):
         return self._Pr_table
     
     @Pr_table.setter
-    def Pr_table(self, value:np.array):
-        if not np.array_equal(self.Pr_table, value):
+    def Pr_table(self, value:np.ndarray):
+        if not np.array_equal(self._Pr_table, value):
             self._Pr_table = value
-            self.evaluate()
             self.write_csv(self.csv_filepath, value)
+            self.evaluate()
     
     @staticmethod
     def read_csv(filepath:str):
@@ -169,4 +105,4 @@ class Model:
         return np.savetxt(filepath, table, delimiter=',')
     
     def __repr__(self):
-        return f'{self.__class__.__name__}(resolution={self.resolution}, zone_dim_meters={self.zone_dim_meters}, config_meters={self.config_meters}, csv_filepath={self.csv_filepath})'
+        return f'{self.__class__.__name__}(resolution={self._resolution}, zone_dim_meters={self._zone_dim_meters}, config_meters={self._config_meters}, csv_filepath={self._csv_filepath})'

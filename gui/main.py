@@ -10,6 +10,8 @@ from view import View
 
 def main():
     
+    app = QApplication(sys.argv)
+    
     parser = INIParser()
     parser.read()
     
@@ -22,7 +24,6 @@ def main():
     viewmodel = ViewModel(model)
     view = View(viewmodel)
     
-    app = QApplication(sys.argv)
     view.show()
     sys.exit(app.exec_())
     

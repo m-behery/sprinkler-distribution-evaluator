@@ -10,6 +10,7 @@ from argparse import Namespace
 import os
 import numpy as np
 import logging
+from sprinklers import run_simulation
 
 class INIParser(ConfigParser):
     
@@ -71,4 +72,23 @@ def namespace_equal(ns1, ns2):
         elif v1 != v2:
             return False
     return True
+
+def read_csv(filepath:str):
+    try:
+        return np.loadtxt(filepath, delimiter=',')
+    except Exception as e:
+        logging.warning(f"Failed to load CSV from {filepath}: {e}")
+        return np.empty((0, 0))
+
+def write_csv(filepath:str, table:np.array):
+    return np.savetxt(filepath, table, delimiter=',')
+
+def evaluate(resolution, zone_dim_meters, config_meters, Pr_table):
+    try:
+        return run_simulation(resolution,
+                              zone_dim_meters,
+                              config_meters,
+                              Pr_table)
+    except:
+        return None
     

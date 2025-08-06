@@ -9,7 +9,7 @@ from model import Model
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtProperty
 import numpy as np
 from argparse import Namespace
-from helper import namespace_equal
+from helper import namespace_equal, run_simulation
 
 class ViewModel(QObject):
     

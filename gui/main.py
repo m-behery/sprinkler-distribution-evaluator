@@ -28,4 +28,20 @@ def main():
     sys.exit(app.exec_())
     
 if __name__ == '__main__':
-    main()
+    app = QApplication(sys.argv)
+    
+    parser = INIParser()
+    parser.read()
+    
+    model = Model(
+        resolution      = parser.getint('Display', 'RESOLUTION'),
+        zone_dim_meters = parser.gettuple('Sprinklers', 'ZONE_DIM_METERS'),
+        config_meters    = parser.gettuple('Sprinklers', 'CONFIG_METERS'),
+        csv_filepath     = parser.clean_inline_get('Sprinklers', 'CSV_FILEPATH'),
+    )
+    viewmodel = ViewModel(model)
+    view = View(viewmodel)
+    
+    view.show()
+    Pr_grid, Pr_step = model.Pr_grid, model.Pr_step
+    sys.exit(app.exec_())

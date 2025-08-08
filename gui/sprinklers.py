@@ -97,7 +97,27 @@ def generate_zone(zone_shape:tuple[int], window:np.ndarray[bool]):
 # DISTRIBUTION MODEL
 # ──────────────────────────────────────────────────────────────────────
 
-def prepare_sprinkler_distribution_grid(Pr_table:np.ndarray, resolution:int):
+def Pr_table_to_step(Pr_table:np.ndarray):
+    return np.diff(np.sort(np.unique(Pr_table[:, 0])))[0]
+
+def Pr_table_to_grid(Pr_table:np.ndarray):
+    Pr_grid = Pr_table_to_dist(Pr_table, 1)
+    Pr_step = Pr_table_to_step(Pr_table)
+    return Pr_grid, Pr_step
+
+def Pr_grid_to_table(Pr_grid:np.ndarray, Pr_step:float):
+    n = Pr_grid.shape[0]
+    distances = np.cumsum(np.ones(n) * Pr_step)
+    Pr_table = np.empty((0, 3))
+    for i in range(n):
+        for j in range(n):
+            Pr_table = np.concat([
+                [[distances[j], distances[i], Pr_grid[i, j]]],
+                Pr_table
+            ], axis=0)
+    return Pr_table
+
+def Pr_table_to_dist(Pr_table:np.ndarray, resolution:int):
     """
     Maps precipitation measurements from the CSV-like input table to a pixel grid.
     
@@ -112,7 +132,7 @@ def prepare_sprinkler_distribution_grid(Pr_table:np.ndarray, resolution:int):
     values = Pr_table[:, -1]
     shape = positions.max(axis=0)
     distribution = np.zeros(shape)
-    step = np.diff(np.sort(np.unique(positions[:, 0])))[0]
+    step = Pr_table_to_step(positions)
     halfstep = step // 2 + 1
 
     for y in range(0, shape[0]+1, step):
@@ -308,7 +328,7 @@ def prepare_image(display_fn, resolution, max_ticks=8, display=True, **fn_args):
 # SIMULATION EXECUTION
 # ──────────────────────────────────────────────────────────────────────
 
-def run_simulation(resolution:int, zone_dim_meters:tuple, config_meters:tuple, Pr_table:np.ndarray, display=False):
+def run_simulation(resolution:int, zone_dim_meters:tuple, config_meters:tuple, Pr_dist:np.ndarray, display=False):
     """
     Runs the entire sprinkler simulation pipeline:
     1. Converts physical dimensions to pixels
@@ -340,9 +360,8 @@ def run_simulation(resolution:int, zone_dim_meters:tuple, config_meters:tuple, P
     yx_sprinklers = np.stack(np.where(sprinklers_mask), axis=1)
 
     # Load the sprinkler's precipitation map and tile it to all directions
-    raw_dist = prepare_sprinkler_distribution_grid(Pr_table, resolution)
-    pattern = tile_distribution(raw_dist)
-    step = raw_dist.shape[0]  # Assuming square (height = width)
+    pattern = tile_distribution(Pr_dist)
+    step = Pr_dist.shape[0]  # Assuming square (height = width)
 
 	# Apply all sprinkler patterns to generate the cumulative precipitation rate map
     final_zone = apply_distribution(sprinklers_mask, yx_sprinklers, pattern, step)

@@ -10,6 +10,7 @@ import numpy as np
 from helper import INIParser, namespace_equal, read_csv
 import logging
 from functools import wraps
+from sprinklers import Pr_table_to_grid, Pr_grid_to_table, Pr_table_to_dist, run_simulation
 
 class Model:
     
@@ -19,7 +20,8 @@ class Model:
         self._zone_dim_meters = zone_dim_meters
         self._config_meters = config_meters
         self._csv_filepath = None
-        self._Pr_table = None
+        self._Pr_grid = None
+        self._Pr_step = None
         self._evaluation_result = None
         
         self.csv_filepath = csv_filepath
@@ -30,8 +32,7 @@ class Model:
     
     @evaluation_result.setter
     def evaluation_result(self, value:Namespace):
-        if not namespace_equal(self._evaluation_result, value):
-            self._evaluation_result = value
+        self._evaluation_result = value
         
     @property
     def resolution(self):
@@ -39,8 +40,7 @@ class Model:
     
     @resolution.setter
     def resolution(self, value:int):
-        if self._resolution != value:
-            self._resolution = value
+        self._resolution = value
         
     @property
     def zone_dim_meters(self):
@@ -48,8 +48,7 @@ class Model:
     
     @zone_dim_meters.setter
     def zone_dim_meters(self, value:tuple):
-        if self._zone_dim_meters != value:
-            self._zone_dim_meters = value
+        self._zone_dim_meters = value
         
     @property
     def config_meters(self):
@@ -57,8 +56,7 @@ class Model:
     
     @config_meters.setter
     def config_meters(self, value:tuple):
-        if self._config_meters != value:
-            self._config_meters = value
+        self._config_meters = value
         
     @property
     def csv_filepath(self):
@@ -66,9 +64,8 @@ class Model:
     
     @csv_filepath.setter
     def csv_filepath(self, value:str):
-        if self._csv_filepath != value:
-            self._csv_filepath = value
-            self.Pr_table = read_csv(value)
+        self._csv_filepath = value
+        self.Pr_table = read_csv(value)
     
     @property
     def Pr_table(self):
@@ -76,8 +73,67 @@ class Model:
     
     @Pr_table.setter
     def Pr_table(self, value:np.ndarray):
-        if not np.array_equal(self._Pr_table, value):
-            self._Pr_table = value
+        self._Pr_table = value
+        self._Pr_grid, self._Pr_step = Pr_table_to_grid(value)
+        self.Pr_dist = Pr_table_to_dist(value, self._resolution)
     
+    @property
+    def Pr_step(self):
+        return self._Pr_step
+    
+    @Pr_step.setter
+    def Pr_step(self, value:float):
+        self._Pr_step = value
+        self.Pr_table = Pr_grid_to_table(self._Pr_grid, value)
+    
+    @property
+    def Pr_grid(self):
+        return self._Pr_grid
+    
+    @Pr_grid.setter
+    def Pr_grid(self, value:np.ndarray):
+        self._Pr_grid = value
+        self.Pr_table = Pr_grid_to_table(value, self._Pr_step)
+    
+    @property
+    def Pr_dist(self):
+        return self._Pr_dist
+    
+    @Pr_dist.setter
+    def Pr_dist(self, value:np.ndarray):
+        self._Pr_dist = value
+        
     def __repr__(self):
         return f'{self.__class__.__name__}(resolution={self._resolution}, zone_dim_meters={self._zone_dim_meters}, config_meters={self._config_meters}, csv_filepath={self._csv_filepath})'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

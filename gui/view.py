@@ -8,16 +8,30 @@ Created on Wed Aug  6 03:17:40 2025
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QComboBox, QDoubleSpinBox,
-    QTableWidgetItem, QPushButton, QSlider,
+    QTableWidgetItem, QPushButton, QSlider, QStyledItemDelegate,
 )
+from PyQt5.QtGui import QColor, QBrush, QDoubleValidator
 from PyQt5.QtCore import Qt, QTimer
 import numpy as np
 from viewmodel import ViewModel
 from helper import write_csv, evaluate
 
+class NumericDelegate(QStyledItemDelegate):
+    def createEditor(self, parent, option, index):
+        editor = super().createEditor(parent, option, index)
+        if editor:
+            validator = QDoubleValidator(editor)
+            validator.setBottom(0.0)
+            validator.setTop(1e2)
+            validator.setDecimals(2)
+            editor.setValidator(validator)
+        return editor
+
 class View(QWidget):
     
     EVAL_DELAY = 1000
+    CELL_SIZE = 40
+    FIXED_DISPLAY_LIMIT = 10
     
     def __init__(self, viewmodel:ViewModel):
         super().__init__()
@@ -34,10 +48,9 @@ class View(QWidget):
         self.setWindowTitle('Sprinkler Distribution Evaluator')
         self.layout = QVBoxLayout()
         
-        self.resolution_label = QLabel('Resolution:')
+        self.resolution_label = QLabel('Resolution: 1')
         self.resolution_slider = QSlider(Qt.Horizontal)
         self.resolution_slider.setRange(1, 100)
-        self.resolution_value_label = QLabel('1')
         
         self.config_label = QLabel('Sprinkler Configuration:')
         self.config_dropdown = QComboBox()
@@ -59,7 +72,6 @@ class View(QWidget):
         
         self.layout.addWidget(self.resolution_label)
         self.layout.addWidget(self.resolution_slider)
-        self.layout.addWidget(self.resolution_value_label)
         self.layout.addWidget(self.config_label)
         self.layout.addWidget(self.config_dropdown)
         self.layout.addWidget(self.config_dim_a_label)
@@ -68,6 +80,7 @@ class View(QWidget):
         self.layout.addWidget(self.config_dim_b_spinbox)
         
         self.table = QTableWidget()
+        self.table.setItemDelegate(NumericDelegate(self.table))
         self.layout.addWidget(self.table)
         
         self.apply_button = QPushButton('Apply Table Changes')
@@ -78,12 +91,12 @@ class View(QWidget):
     def bind_viewmodel(self):
         
         self.resolution_slider.setValue(self.viewmodel.resolution)
-        self.resolution_value_label.setText(str(self.viewmodel.resolution))
+        self.resolution_label.setText(f'Resolution: {self.viewmodel.resolution}')
         self.resolution_slider.valueChanged.connect(self.on_resolution_changed)
         self.viewmodel.resolution__changed.connect(
             lambda value: (
                 self.resolution_slider.setValue(value),
-                self.resolution_value_label.setText(str(value))
+                self.resolution_label.setText(f'Resolution: {value}')
             )
         )
         
@@ -101,8 +114,8 @@ class View(QWidget):
         self.config_dim_a_spinbox.setValue(a)
         self.config_dim_b_spinbox.setValue(b)
         
-        self.update_table(self.viewmodel.Pr_table)
-        self.viewmodel.Pr_table__changed.connect(self.update_table)
+        self.update_table(self.viewmodel.Pr_grid)
+        self.viewmodel.Pr_grid__changed.connect(self.update_table)
         self.apply_button.clicked.connect(self.on_apply_button_clicked)
         self.table.itemChanged.connect(self.on_table_changed)
     
@@ -120,24 +133,47 @@ class View(QWidget):
         self.evaluation_timer.start(self.EVAL_DELAY)
     
     def on_resolution_changed(self, value):
-        self.resolution_value_label.setText(str(value))
+        self.resolution_label.setText(f'Resolution: {value}')
         self.viewmodel.set__resolution(value)
         self.evaluation_timer.start(self.EVAL_DELAY)
         
     def update_table(self, arr):
         self.table.blockSignals(True)
-        rows, cols = arr.shape
-        rows += 1
+        
+        Pr_max = arr.max()
+        rows, cols = np.array(arr.shape) + 1
         self.table.setRowCount(rows)
         self.table.setColumnCount(cols)
-        self.table.setHorizontalHeaderLabels(['x', 'y', 'Pr (mm/h)'])
+        self.table.clearContents()
         for i in range(rows):
             for j in range(cols):
-                item = QTableWidgetItem('' if i == rows - 1 else str(arr[i,j]))
+                if i == rows - 1 or j == cols - 1:
+                    item = QTableWidgetItem('')
+                else:
+                    value = arr[i, j]
+                    item = QTableWidgetItem(str(value))
+                    
+                    normalized_value = value / (Pr_max + 1e-3)
+                    color = QColor.fromHsv(100, 255, int(255 * normalized_value))
+                    item.setBackground(QBrush(color))
+                    if normalized_value < 0.5:
+                        item.setForeground(QBrush(QColor(255, 255, 255)))
+                        
                 item.setTextAlignment(Qt.AlignCenter)
                 self.table.setItem(i, j, item)
+                
+        for row in range(rows):
+            self.table.setRowHeight(row, self.CELL_SIZE)
+            
+        for col in range(cols):
+            self.table.setColumnWidth(col, self.CELL_SIZE)
+            
+        total_height = min(rows, self.FIXED_DISPLAY_LIMIT) * self.CELL_SIZE + 25
+        total_width = min(cols, self.FIXED_DISPLAY_LIMIT) * self.CELL_SIZE + 20
+        self.table.setFixedSize(total_width, total_height)
+    
         self.table.blockSignals(False)
-        
+
     def on_apply_button_clicked(self):
         write_csv(self.viewmodel.csv_filepath, self.viewmodel.Pr_table)
         
@@ -148,29 +184,29 @@ class View(QWidget):
         for i in range(rows):
             for j in range(cols):
                 item = self.table.item(i, j)
+                conj_item = self.table.item(j, i)
+                
                 try:
-                    arr[i, j] = float(item.text()) if item else 0.0
+                    value = float(item.text()) if item else 0.0
                 except ValueError:
-                    arr[i, j] = 0.0
-        invalid = (arr == [0,0,0]).all(1)
-        arr = arr[~invalid]
-        self.viewmodel.set__Pr_table(arr)
-        
-    def keyPressEvent(self, event):
-        is_empty = lambda row: all([self.table.item(row, col).text() == '' for col in range(self.table.columnCount())])
-        if event.key() == Qt.Key_Delete:
-            selected_ranges = self.table.selectedRanges()
-            if selected_ranges:
-                self.table.blockSignals(True)
-                for selection in selected_ranges:
-                    for row in reversed(range(selection.topRow(), selection.bottomRow() + 1)):
-                        if is_empty(row):
-                            continue
-                        self.table.removeRow(row)
-                self.table.blockSignals(False)
-            self.on_table_changed()
-        else:
-            super().keyPressEvent(event)
+                    value = 0.0
+                    
+                try:
+                    conj_value = float(conj_item.text()) if conj_item else 0.0
+                except ValueError:
+                    conj_value = 0.0
+                
+                if value:
+                    arr[i, j] = value
+                else:
+                    arr[i, j] = conj_value
+                    
+        invalid_rows, invalid_cols = map(lambda x: (arr == 0).all(x), (1, 0))
+        arr = arr[~invalid_rows, :]
+        arr = arr[:, ~invalid_cols]
+        self.viewmodel.set__Pr_grid(arr)
+        print(arr)
+        self.evaluation_timer.start(self.EVAL_DELAY)
             
     def update_evaluation_result(self):
         print(f'Config Dimensions: {self.viewmodel.config_meters}')
@@ -178,7 +214,7 @@ class View(QWidget):
             self.viewmodel.resolution, 
             self.viewmodel.zone_dim_meters,
             self.viewmodel.config_meters,
-            self.viewmodel.Pr_table
+            self.viewmodel.Pr_dist
         )
         metrics = self.viewmodel.evaluation_result.metrics
         print(f'Metrics - CU: {metrics.CU}, DU: {metrics.DU}')

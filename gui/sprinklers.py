@@ -98,7 +98,10 @@ def generate_zone(zone_shape:tuple[int], window:np.ndarray[bool]):
 # ──────────────────────────────────────────────────────────────────────
 
 def Pr_table_to_step(Pr_table:np.ndarray):
-    return np.diff(np.sort(np.unique(Pr_table[:, 0])))[0]
+    try:
+        return np.diff(np.sort(np.unique(Pr_table[:, 0])))[0]
+    except IndexError:
+        return 1
 
 def Pr_table_to_grid(Pr_table:np.ndarray):
     Pr_grid = Pr_table_to_dist(Pr_table, 1)
@@ -106,7 +109,7 @@ def Pr_table_to_grid(Pr_table:np.ndarray):
     return Pr_grid, Pr_step
 
 def Pr_grid_to_table(Pr_grid:np.ndarray, Pr_step:float):
-    n = Pr_grid.shape[0]
+    n = min(Pr_grid.shape)
     distances = np.cumsum(np.ones(n) * Pr_step)
     Pr_table = np.empty((0, 3))
     for i in range(n):
@@ -128,6 +131,8 @@ def Pr_table_to_dist(Pr_table:np.ndarray, resolution:int):
     Returns:
         distribution (np.ndarray): 2D array representing precipitation rate per pixel.
     """
+    if Pr_table.size == 3:
+        return None
     positions = (Pr_table[:, :2][:, ::-1] * resolution).astype(int)  # [y, x] in pixels
     values = Pr_table[:, -1]
     shape = positions.max(axis=0)
@@ -143,7 +148,7 @@ def Pr_table_to_dist(Pr_table:np.ndarray, resolution:int):
             y_min, y_max = max(0, y - halfstep), y + halfstep
             x_min, x_max = max(0, x - halfstep), x + halfstep
             distribution[y_min:y_max, x_min:x_max] = Pr
-
+            
     return distribution
 
 def tile_distribution(dist:np.ndarray):
@@ -208,7 +213,9 @@ def calculate_DU(plot):
     to the mean of all values, expressed as a percentage.
     """
     LQ = plot < np.quantile(plot, 0.25)
-    return round(np.mean(plot[LQ]) / np.mean(plot) * 100, 2).item()
+    if LQ.any():
+        return round(np.mean(plot[LQ]) / (np.mean(plot) + 1e-6) * 100, 2).item()
+    return 0.0
 
 def calculate_CU(plot):
     """
@@ -216,7 +223,7 @@ def calculate_CU(plot):
     expressed as a percentage (higher is better).
     """
     mean_val = np.mean(plot)
-    return round(100 * (1 - np.sum(np.abs(plot - mean_val)) / (plot.size * mean_val)), 2).item()
+    return round(100 * (1 - np.sum(np.abs(plot - mean_val)) / (plot.size * mean_val + 1e-6)), 2).item()
 
 # ──────────────────────────────────────────────────────────────────────
 # VISUALIZE PLOTS

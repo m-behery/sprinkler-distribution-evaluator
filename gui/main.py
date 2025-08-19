@@ -5,7 +5,7 @@ from viewmodel import ViewModel
 
 import sys
 from model import Model
-from helper import INIParser
+from utils import INIParser
 from view import View
 
 def main():

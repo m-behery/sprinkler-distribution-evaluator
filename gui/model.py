@@ -7,10 +7,10 @@ Created on Tue Jul 22 01:25:01 2025
 """
 from argparse import Namespace
 import numpy as np
-from helper import INIParser, namespace_equal, read_csv
+from utils import INIParser, namespace_equal, read_csv
 import logging
 from functools import wraps
-from sprinklers import Pr_table_to_grid, Pr_grid_to_table, Pr_table_to_dist, run_simulation
+from sprinklers import Pr_table_to_grid, Pr_grid_to_table, Pr_table_to_quadrant, run_simulation
 
 class Model:
     
@@ -75,7 +75,7 @@ class Model:
     def Pr_table(self, value:np.ndarray):
         self._Pr_table = value
         self._Pr_grid, self._Pr_step = Pr_table_to_grid(value)
-        self.Pr_dist = Pr_table_to_dist(value, self._resolution)
+        self.Pr_dist = Pr_table_to_quadrant(value, self._resolution)
     
     @property
     def Pr_step(self):

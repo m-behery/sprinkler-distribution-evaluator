@@ -14,7 +14,8 @@ from PyQt5.QtGui import QColor, QBrush, QDoubleValidator
 from PyQt5.QtCore import Qt, QTimer
 import numpy as np
 from viewmodel import ViewModel
-from helper import write_csv, evaluate
+from utils import write_csv
+from sprinklers import evaluate
 
 class NumericDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
@@ -50,9 +51,9 @@ class View(QWidget):
         self.setWindowTitle('Sprinkler Distribution Evaluator')
         self.layout = QVBoxLayout()
         
-        self.resolution_label = QLabel('Resolution: 1')
+        self.resolution_label = QLabel('Resolution: 5')
         self.resolution_slider = QSlider(Qt.Horizontal)
-        self.resolution_slider.setRange(1, 100)
+        self.resolution_slider.setRange(5, 100)
         
         self.config_label = QLabel('Sprinkler Configuration:')
         self.config_dropdown = QComboBox()
@@ -78,7 +79,7 @@ class View(QWidget):
         self.Pr_step_spinbox = QDoubleSpinBox()
         self.Pr_step_spinbox.setDecimals(2)
         self.Pr_step_spinbox.setSingleStep(0.1)
-        self.Pr_step_spinbox.setRange(0.6, 20.0)
+        self.Pr_step_spinbox.setRange(0.1, 20.0)
         self.Pr_step_spinbox.setPrefix('Spacing (m): ')
         
         self.table = QTableWidget()

@@ -7,23 +7,19 @@ Created on Thu Jul 24 02:51:13 2025
 """
 
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from io import BytesIO
 from PIL import Image
 from argparse import Namespace
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-import matplotlib
-matplotlib.use('Agg')
-
-import warnings
-warnings.filterwarnings("ignore", message="FigureCanvasAgg is non-interactive.*")
+from utils import plot_grayscale_as_3D
 
 # ──────────────────────────────────────────────────────────────────────
 # GEOMETRY FUNCTIONS
 # ──────────────────────────────────────────────────────────────────────
 
-def create_sprinkler_window(config_pixels:np.ndarray):
+def create_sprinkler_window(config_shape:np.ndarray):
     """
     Creates a binary mask representing sprinkler positions within a tile
     based on the specified layout (triangular if one value is given, else rectangular).
@@ -34,9 +30,10 @@ def create_sprinkler_window(config_pixels:np.ndarray):
     Returns:
         window (np.ndarray[bool]): A binary mask with `True` at sprinkler positions.
     """
-    if config_pixels.size == 1:
+    is_triangle = config_shape.size == 1
+    if is_triangle:
         # Triangular layout
-        s = config_pixels[0]
+        s = config_shape[0]
         h = int(0.866 * s)  # Height of equilateral triangle (≈ √3/2 * side)
         window_shape = [2 * h, s]
         window = np.zeros(window_shape, dtype=bool)
@@ -49,7 +46,7 @@ def create_sprinkler_window(config_pixels:np.ndarray):
         window[-1, step_x] = True
     else:
         # Rectangular layout
-        window_shape = config_pixels
+        window_shape = config_shape
         window = np.zeros(window_shape, dtype=bool)
 
         # Place sprinklers at the four corners of the rectangle
@@ -58,9 +55,9 @@ def create_sprinkler_window(config_pixels:np.ndarray):
         window[-1, 0]  = True
         window[-1, -1] = True
 
-    return window
+    return window, is_triangle
 
-def generate_zone(zone_shape:tuple[int], window:np.ndarray[bool]):
+def generate_sprinklers_mask(zone_shape:tuple[int], window:np.ndarray[bool], is_triangle:bool):
     """
     Tiles the sprinkler window across the zone to simulate the full sprinkler grid.
     Adds a bottom row in triangular layout to complete staggered coverage.
@@ -73,25 +70,27 @@ def generate_zone(zone_shape:tuple[int], window:np.ndarray[bool]):
         zone (np.ndarray[bool]): Boolean array marking sprinkler locations.
     """
     step_y, step_x = window.shape
-    zone = np.zeros(zone_shape, dtype=bool)
+    sprinklers_mask = np.zeros(zone_shape, dtype=bool)
     n_row_passes = 0
 
-    for y in range(0, zone.shape[0] - step_y, step_y - 1):
-        for x in range(0, zone.shape[1] - step_x, step_x - 1):
-            zp = zone[y:y+step_y, x:x+step_x]
-            zone[y:y+step_y, x:x+step_x] = zp | window[:zp.shape[0], :zp.shape[1]]
+    for y in range(0, sprinklers_mask.shape[0] - step_y, step_y - 1):
+        for x in range(0, sprinklers_mask.shape[1] - step_x, step_x - 1):
+            zone_portion = sprinklers_mask[y : y + step_y, x : x + step_x]
+            zone_portion_h, zone_portion_w = zone_portion.shape
+            sprinklers_mask[y:y+step_y, x:x+step_x] = zone_portion | window[:zone_portion_h, :zone_portion_w]
         n_row_passes += 1
 
     # Additional row for triangle layout to simulate staggered coverage
-    if window.shape[0] != window.shape[1]:  
+    if is_triangle:  
         y = n_row_passes * (step_y - 1)
         halfstep_y = step_y // 2 + 1
         half_window = window[:halfstep_y]
-        for x in range(0, zone.shape[1] - step_x, step_x - 1):
-            zp = zone[y:y+halfstep_y, x:x+step_x]
-            zone[y:y+halfstep_y, x:x+step_x] = zp | half_window[:zp.shape[0], :zp.shape[1]]
+        for x in range(0, sprinklers_mask.shape[1] - step_x, step_x - 1):
+            zone_portion = sprinklers_mask[y:y+halfstep_y, x:x+step_x]
+            zone_portion_h, zone_portion_w = zone_portion.shape
+            sprinklers_mask[y:y+halfstep_y, x:x+step_x] = zone_portion | half_window[:zone_portion_h, :zone_portion_w]
 
-    return zone
+    return sprinklers_mask
 
 # ──────────────────────────────────────────────────────────────────────
 # DISTRIBUTION MODEL
@@ -104,23 +103,22 @@ def Pr_table_to_step(Pr_table:np.ndarray):
         return 1
 
 def Pr_table_to_grid(Pr_table:np.ndarray):
-    Pr_grid = Pr_table_to_dist(Pr_table, 1)
-    Pr_step = Pr_table_to_step(Pr_table)
+    Pr_table = pd.DataFrame(Pr_table)
+    Pr_grid = pd.pivot(Pr_table, columns=0, index=1, values=2)
+    Pr_step = np.diff(Pr_grid.index)[0]
+    Pr_grid = Pr_grid.values
     return Pr_grid, Pr_step
 
 def Pr_grid_to_table(Pr_grid:np.ndarray, Pr_step:float):
-    n = min(Pr_grid.shape)
-    distances = np.cumsum(np.ones(n) * Pr_step)
-    Pr_table = np.empty((0, 3))
-    for i in range(n):
-        for j in range(n):
-            Pr_table = np.concat([
-                [[distances[j], distances[i], Pr_grid[i, j]]],
-                Pr_table
-            ], axis=0)
+    Pr_grid = pd.DataFrame(Pr_grid)
+    Pr_table = pd.melt(Pr_grid, ignore_index=False, var_name=0, value_name='tmp').reset_index()
+    Pr_table.columns = [1, 0, 2]
+    Pr_table.sort_index(axis=1, inplace=True)
+    Pr_table = Pr_table.values
+    Pr_table[:, :2] *= Pr_step
     return Pr_table
 
-def Pr_table_to_dist(Pr_table:np.ndarray, resolution:int):
+def Pr_table_to_quadrant(Pr_table:np.ndarray, resolution:int):
     """
     Maps precipitation measurements from the CSV-like input table to a pixel grid.
     
@@ -129,29 +127,30 @@ def Pr_table_to_dist(Pr_table:np.ndarray, resolution:int):
         resolution (int): Pixels per meter.
 
     Returns:
-        distribution (np.ndarray): 2D array representing precipitation rate per pixel.
+        quadrant (np.ndarray): 2D array representing precipitation rate per pixel.
     """
     if Pr_table.size == 3:
         return None
-    positions = (Pr_table[:, :2][:, ::-1] * resolution).astype(int)  # [y, x] in pixels
-    values = Pr_table[:, -1]
-    shape = positions.max(axis=0)
-    distribution = np.zeros(shape)
-    step = Pr_table_to_step(positions)
+    yx_positions = (Pr_table[:, :2][:, ::-1] * resolution).astype(int)  # [y, x] in pixels
+    Pr_values = Pr_table[:, -1]
+    quadrant_shape = yx_positions.max(axis=0) + 1
+    quadrant = np.zeros(quadrant_shape)
+    step = Pr_table_to_step(yx_positions)
     halfstep = step // 2 + 1
 
-    for y in range(0, shape[0]+1, step):
-        for x in range(0, shape[1]+1, step):
-            mask = (positions == [y, x]).all(axis=1)
+    quadrant_h, quadrant_w = quadrant.shape
+    for y in range(0, quadrant_h+1, step):
+        for x in range(0, quadrant_w+1, step):
+            mask = (yx_positions == [y, x]).all(axis=1)
             if not np.any(mask): continue
-            Pr = values[mask][0]
+            Pr = Pr_values[mask][0]
             y_min, y_max = max(0, y - halfstep), y + halfstep
             x_min, x_max = max(0, x - halfstep), x + halfstep
-            distribution[y_min:y_max, x_min:x_max] = Pr
-            
-    return distribution
+            quadrant[y_min:y_max, x_min:x_max] = Pr
+    
+    return quadrant
 
-def tile_distribution(dist:np.ndarray):
+def tile_quadrants(quadrant:np.ndarray):
     """
     Mirrors the measured precipitation pattern into all 4 quadrants
     to simulate omnidirectional sprinkler behavior.
@@ -162,15 +161,16 @@ def tile_distribution(dist:np.ndarray):
     Returns:
         tiled (np.ndarray): Symmetrically tiled 2D pattern.
     """
-    h, w = dist.shape
-    tiled = np.zeros((2 * h, 2 * w))
-    tiled[:h, :w] = dist[::-1, ::-1]  # top-left
-    tiled[:h, w:] = dist[::-1]       # top-right
-    tiled[h:, :w] = dist[:, ::-1]    # bottom-left
-    tiled[h:, w:] = dist             # bottom-right
-    return tiled
+    h, w = quadrant.shape
+    plot = np.zeros((2 * h, 2 * w))
+    plot[:h, :w] = quadrant[::-1, ::-1]  # top-left
+    plot[:h, w:] = quadrant[::-1]       # top-right
+    plot[h:, :w] = quadrant[:, ::-1]    # bottom-left
+    plot[h:, w:] = quadrant             # bottom-right
+    
+    return plot
 
-def apply_distribution(zone:np.ndarray, sprinklers:np.ndarray, pattern:np.ndarray, step:int):
+def apply_distribution(sprinklers_mask:np.ndarray, plot:np.ndarray, step:int):
     """
     Adds the precipitation pattern to each sprinkler location across the zone.
 
@@ -183,24 +183,31 @@ def apply_distribution(zone:np.ndarray, sprinklers:np.ndarray, pattern:np.ndarra
     Returns:
         zone (np.ndarray): Cumulative precipitation map.
     """
-    zone = np.zeros_like(zone, dtype=float)
-
-    for y, x in sprinklers:
+    
+    zone = np.zeros(sprinklers_mask.shape)
+    yx_sprinklers = np.stack(np.where(sprinklers_mask), axis=1)
+    
+    for y, x in yx_sprinklers:
         y_min, y_max = y - step, y + step
         x_min, x_max = x - step, x + step
-        plot_slice = pattern.copy()
 
         # Handle boundary clipping
-        if y_min < 0: plot_slice = plot_slice[-y_min:]
-        if x_min < 0: plot_slice = plot_slice[:, -x_min:]
+        if y_min < 0 and x_min < 0:
+            plot_portion = plot[-y_min:, -x_min:]
+        elif y_min < 0:
+            plot_portion = plot[-y_min:]
+        elif x_min < 0:
+            plot_portion = plot[:, -x_min:]
+        else:
+            plot_portion = plot.copy()
         y_min = max(y_min, 0)
         x_min = max(x_min, 0)
 
         # Overlay the pattern
-        zp = zone[y_min:y_max, x_min:x_max]
-        ps = plot_slice[:zp.shape[0], :zp.shape[1]]
-        zone[y_min:y_max, x_min:x_max] = zp + ps
-
+        zone_portion = zone[y_min : y_max, x_min : x_max]
+        zone_portion_h, zone_portion_w = zone_portion.shape
+        zone[y_min : y_max, x_min : x_max] = zone_portion + plot_portion[:zone_portion_h, :zone_portion_w]
+    
     return zone
 
 # ──────────────────────────────────────────────────────────────────────
@@ -335,7 +342,7 @@ def prepare_image(display_fn, resolution, max_ticks=8, display=True, **fn_args):
 # SIMULATION EXECUTION
 # ──────────────────────────────────────────────────────────────────────
 
-def run_simulation(resolution:int, zone_dim_meters:tuple, config_meters:tuple, Pr_dist:np.ndarray, display=False):
+def run_simulation(resolution:int, zone_dim_meters:tuple, config_meters:tuple, Pr_quadrant:np.ndarray, display=False):
     """
     Runs the entire sprinkler simulation pipeline:
     1. Converts physical dimensions to pixels
@@ -356,43 +363,46 @@ def run_simulation(resolution:int, zone_dim_meters:tuple, config_meters:tuple, P
         Namespace: Contains zone image, homogenous plot image, and evaluation metrics.
     """
     # Convert physical dimensions to pixels
-    zone_pixels  = (resolution * np.array(zone_dim_meters[::-1])).astype(int)
-    config_pixels = (resolution * np.array(config_meters[::-1])).astype(int)
+    zone_shape  = (resolution * np.array(zone_dim_meters[::-1])).astype(int)
+    config_shape = (resolution * np.array(config_meters[::-1])).astype(int)
 
     # Create sprinkler layout pattern
-    window = create_sprinkler_window(config_pixels)
+    window, is_triangle = create_sprinkler_window(config_shape)
 
     # Generate all sprinkler locations across the zone
-    sprinklers_mask = generate_zone(zone_pixels, window)
-    yx_sprinklers = np.stack(np.where(sprinklers_mask), axis=1)
+    sprinklers_mask = generate_sprinklers_mask(zone_shape, window, is_triangle)
 
     # Load the sprinkler's precipitation map and tile it to all directions
-    pattern = tile_distribution(Pr_dist)
-    step = Pr_dist.shape[0]  # Assuming square (height = width)
-
+    plot = tile_quadrants(Pr_quadrant)
+    step = Pr_quadrant.shape[0]  # Assuming square (height = width)
+    
 	# Apply all sprinkler patterns to generate the cumulative precipitation rate map
-    final_zone = apply_distribution(sprinklers_mask, yx_sprinklers, pattern, step)
-
+    zone = apply_distribution(sprinklers_mask, plot, step)
+    
     # Prepare and visualize the image of the full coverage area
-    zone_image = prepare_image(display_zone,
-                               resolution, 8, display,
-                               zone=final_zone,
-                               yx_sprinklers=yx_sprinklers)
+# =============================================================================
+#     zone_image = prepare_image(display_zone,
+#                                resolution, 8, display,
+#                                zone=zone,
+#                                yx_sprinklers=yx_sprinklers)
+# =============================================================================
 
     # Crop the homogenous plot for analysis (usually centered around sprinklers)
     wh, ww = window.shape
     if len(config_meters) == 1:  # Triangular layout
         h = wh // 2
         hw = ww // 2
-        homogenous_plot = final_zone[:h, hw:ww + hw]
+        homogenous_plot = zone[:h, hw:ww + hw]
     else:  # Rectangular layout
-        homogenous_plot = final_zone[:wh, :ww]
+        homogenous_plot = zone[:wh, :ww]
 
     # Prepare and visualize the homogenous plot image
-    homogenous_plot_image = prepare_image(display_homogenous_plot,
-                                          resolution, 8, display,
-                                          homogenous_plot=homogenous_plot)
-        
+# =============================================================================
+#     homogenous_plot_image = prepare_image(display_homogenous_plot,
+#                                           resolution, 8, display,
+#                                           homogenous_plot=homogenous_plot)
+# =============================================================================
+    
     # Calculate evaluation metrics
     evaluation_metrics = Namespace(
         DU=calculate_DU(homogenous_plot),
@@ -400,9 +410,21 @@ def run_simulation(resolution:int, zone_dim_meters:tuple, config_meters:tuple, P
     )
     
     result = Namespace(
-        zone=zone_image,
-        homogenous_plot=homogenous_plot_image,
+        zone=zone,
+        homogenous_plot=homogenous_plot,
         metrics=evaluation_metrics,
     )
+    
+    plot_grayscale_as_3D(zone, resolution, (45,45))
+    plot_grayscale_as_3D(homogenous_plot, resolution, (45,60))
 
     return result
+
+def evaluate(resolution, zone_dim_meters, config_meters, Pr_table):
+    try:
+        return run_simulation(resolution,
+                              zone_dim_meters,
+                              config_meters,
+                              Pr_table)
+    except:
+        return None

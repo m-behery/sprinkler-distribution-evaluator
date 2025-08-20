@@ -9,6 +9,7 @@ from configparser import ConfigParser
 from argparse import Namespace
 import os
 import numpy as np
+import pandas as pd
 import logging
 import matplotlib.pyplot as plt
 
@@ -73,24 +74,15 @@ def namespace_equal(ns1, ns2):
             return False
     return True
 
-def read_csv(filepath:str):
+
+def read_csv(csv_filepath):
     try:
-        return np.loadtxt(filepath, delimiter=',')
+        table = pd.read_csv(csv_filepath, header=None)
+        table = table.values
+        return table
     except Exception as e:
-        logging.warning(f"Failed to load CSV from {filepath}: {e}")
-        return np.empty((0, 0))
+        logging.error(f'Failed to load CSV file from "{csv_filepath}.\nError Details: {e}"')
+        return np.empty((0,0))
 
 def write_csv(filepath:str, table:np.array):
     return np.savetxt(filepath, table, delimiter=',')
-
-def plot_grayscale_as_3D(image, resolution, deg_angles):
-    h, w = image.shape
-    x_range, y_range = np.arange(w) / resolution, np.arange(h) / resolution
-    x_map, y_map = np.meshgrid(x_range, y_range)
-    ax = plt.axes(projection='3d')
-    ax.plot_surface(x_map, y_map, image, cmap='viridis', edgecolor='none')
-    ax.view_init(*deg_angles)
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_zlabel('Pr (mm/hr)')
-    plt.show()

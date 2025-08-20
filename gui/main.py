@@ -9,7 +9,7 @@ from utils import INIParser
 from view import View
 
 def main():
-
+    
     app = QApplication(sys.argv)
     
     parser = INIParser()

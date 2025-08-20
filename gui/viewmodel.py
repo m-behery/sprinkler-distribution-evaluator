@@ -20,7 +20,6 @@ class ViewModel(QObject):
     Pr_table__changed          = pyqtSignal(object)
     Pr_step__changed           = pyqtSignal(float)
     Pr_grid__changed           = pyqtSignal(object)
-    Pr_dist__changed           = pyqtSignal(object)
     evaluation_result__changed = pyqtSignal(object)
 # =============================================================================
 #     autowrite_config__changed   = pyqtSignal(bool)
@@ -77,7 +76,6 @@ class ViewModel(QObject):
             self.Pr_table__changed.emit(self._model.Pr_table)
             self.Pr_step__changed.emit(self._model.Pr_step)
             self.Pr_grid__changed.emit(self._model.Pr_grid)
-            self.Pr_dist__changed.emit(self._model.Pr_dist)
             
     csv_filepath = pyqtProperty(str, fget=get__csv_filepath,
                                fset=set__csv_filepath,
@@ -92,7 +90,6 @@ class ViewModel(QObject):
             self.Pr_table__changed.emit(value)
             self.Pr_step__changed.emit(self._model.Pr_step)
             self.Pr_grid__changed.emit(self._model.Pr_grid)
-            self.Pr_dist__changed.emit(self._model.Pr_dist)
     
     Pr_table = pyqtProperty('QVariant', fget=get__Pr_table,
                             fset=set__Pr_table,
@@ -106,7 +103,6 @@ class ViewModel(QObject):
             self._model.Pr_step = value
             self.Pr_step__changed.emit(value)
             self.Pr_table__changed.emit(self._model.Pr_table)
-            self.Pr_dist__changed.emit(self._model.Pr_dist)
      
     Pr_step = pyqtProperty(float, fget=get__Pr_step,
                            fset=set__Pr_step,
@@ -120,23 +116,10 @@ class ViewModel(QObject):
             self._model.Pr_grid = value
             self.Pr_grid__changed.emit(value)
             self.Pr_table__changed.emit(self._model.Pr_table)
-            self.Pr_dist__changed.emit(self._model.Pr_dist)
     
     Pr_grid = pyqtProperty('QVariant', fget=get__Pr_grid,
                             fset=set__Pr_grid,
                             notify=Pr_grid__changed)
-
-    def get__Pr_dist(self):
-        return self._model.Pr_dist
-    
-    def set__Pr_dist(self, value:np.array):
-        if not np.array_equal(self._model.Pr_dist, value):
-            self._model.Pr_dist = value
-            self.Pr_dist__changed.emit(value)
-    
-    Pr_dist = pyqtProperty('QVariant', fget=get__Pr_dist,
-                            fset=set__Pr_dist,
-                            notify=Pr_dist__changed)
     
     def get__evaluation_result(self):
         return self._model.evaluation_result

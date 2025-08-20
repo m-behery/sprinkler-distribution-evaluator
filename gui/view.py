@@ -16,6 +16,28 @@ import numpy as np
 from viewmodel import ViewModel
 from utils import write_csv
 from sprinklers import evaluate
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+
+class Canvas4ImageAs3D(FigureCanvas):
+    
+    def __init__(self, parent=None, w=5, h=4, dpi=100):
+        self.fig = Figure((w, h), dpi)
+        super().__init__(self.fig)
+        self.axes = self.fig.add_subplot(111, projection='3d')
+    
+    def plot(self, image, resolution, deg_angles):
+        h, w = image.shape
+        x_range, y_range = np.arange(w) / resolution, np.arange(h) / resolution
+        x_map, y_map = np.meshgrid(x_range, y_range)
+        ax = self.axes
+        ax.clear()
+        ax.plot_surface(x_map, y_map, image, cmap='viridis', edgecolor='none')
+        ax.view_init(*deg_angles)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('Pr (mm/hr)')
+        self.draw()
 
 class NumericDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
@@ -55,6 +77,22 @@ class View(QWidget):
         self.resolution_slider = QSlider(Qt.Horizontal)
         self.resolution_slider.setRange(5, 100)
         
+        self.zone_label = QLabel('Zone Dimesnions:')
+        
+        self.zone_dim_a_label = QLabel("Width:")
+        self.zone_dim_a_spinbox = QDoubleSpinBox()
+        self.zone_dim_a_spinbox.setDecimals(2)
+        self.zone_dim_a_spinbox.setSingleStep(0.1)
+        self.zone_dim_a_spinbox.setRange(1.0, 1e3)
+        self.zone_dim_a_spinbox.setPrefix('Spacing (m): ')
+        
+        self.zone_dim_b_label = QLabel("Height:")
+        self.zone_dim_b_spinbox = QDoubleSpinBox()
+        self.zone_dim_b_spinbox.setDecimals(2)
+        self.zone_dim_b_spinbox.setSingleStep(0.1)
+        self.zone_dim_b_spinbox.setRange(1.0, 1e3)
+        self.zone_dim_b_spinbox.setPrefix('Spacing (m): ')
+        
         self.config_label = QLabel('Sprinkler Configuration:')
         self.config_dropdown = QComboBox()
         self.config_dropdown.addItems(['Triangle', 'Rectangle'])
@@ -73,8 +111,6 @@ class View(QWidget):
         self.config_dim_b_spinbox.setRange(0.5, 20.0)
         self.config_dim_b_spinbox.setPrefix('Spacing (m): ')
         
-        ## Add lab measurement csv file path selector here
-        
         self.Pr_step_label = QLabel("Measurement Step:")
         self.Pr_step_spinbox = QDoubleSpinBox()
         self.Pr_step_spinbox.setDecimals(2)
@@ -84,9 +120,18 @@ class View(QWidget):
         
         self.table = QTableWidget()
         self.table.setItemDelegate(NumericDelegate(self.table))
+        self.apply_button = QPushButton('Export Table')
+        
+        self.zone_canvas = Canvas4ImageAs3D(self)
+        self.homogenous_plot_canvas = Canvas4ImageAs3D(self)
         
         self.layout.addWidget(self.resolution_label)
         self.layout.addWidget(self.resolution_slider)
+        self.layout.addWidget(self.zone_label)
+        self.layout.addWidget(self.zone_dim_a_label)
+        self.layout.addWidget(self.zone_dim_a_spinbox)
+        self.layout.addWidget(self.zone_dim_b_label)
+        self.layout.addWidget(self.zone_dim_b_spinbox)
         self.layout.addWidget(self.config_label)
         self.layout.addWidget(self.config_dropdown)
         self.layout.addWidget(self.config_dim_a_label)
@@ -96,9 +141,9 @@ class View(QWidget):
         self.layout.addWidget(self.Pr_step_label)
         self.layout.addWidget(self.Pr_step_spinbox)
         self.layout.addWidget(self.table)
-        
-        self.apply_button = QPushButton('Export Table')
         self.layout.addWidget(self.apply_button)
+        self.layout.addWidget(self.zone_canvas)
+        self.layout.addWidget(self.homogenous_plot_canvas)
         
         self.layout.addStretch()
         
@@ -115,6 +160,17 @@ class View(QWidget):
             )
         )
         self.viewmodel.resolution__changed.emit(self.viewmodel.resolution)
+        
+        self.zone_dim_a_spinbox.valueChanged.connect(self.on_zone_dims_changed)
+        self.zone_dim_b_spinbox.valueChanged.connect(self.on_zone_dims_changed)
+        self.viewmodel.zone_dim_meters__changed.connect(
+            lambda value: (
+                self.zone_dim_a_spinbox.setValue(value[0]),
+                self.zone_dim_b_spinbox.setValue(value[1]),
+                self.evaluation_timer.start(self.EVAL_DELAY)
+            )
+        )
+        self.viewmodel.zone_dim_meters__changed.emit(self.viewmodel.zone_dim_meters)
         
         self.config_dropdown.currentIndexChanged.connect(self.on_config_changed)
         self.config_dim_a_spinbox.valueChanged.connect(self.on_config_dims_changed)
@@ -151,6 +207,13 @@ class View(QWidget):
         self.config_dropdown.setCurrentIndex(0 if is_triangle else 1)
         self.config_dim_a_spinbox.setValue(a)
         self.config_dim_b_spinbox.setValue(b)
+        
+    def on_zone_dims_changed(self):
+        w = self.zone_dim_a_spinbox.value()
+        h = self.zone_dim_b_spinbox.value()
+        value = (w, h)
+        self.viewmodel.set__zone_dim_meters(value)
+        self.evaluation_timer.start(self.EVAL_DELAY)
     
     def on_config_changed(self):
         is_triangle = self.config_dropdown.currentIndex() == 0
@@ -267,17 +330,16 @@ class View(QWidget):
             self.zero_input_flag = False
             
     def update_evaluation_result(self):
-        print(f'Config Dimensions: {self.viewmodel.config_meters}')
-        self.viewmodel.evaluation_result = evaluate(
+        result = evaluate(
             self.viewmodel.resolution, 
             self.viewmodel.zone_dim_meters,
             self.viewmodel.config_meters,
-            self.viewmodel.Pr_dist
+            self.viewmodel.Pr_table
         )
-        
-        if self.viewmodel.evaluation_result is not None:
-            metrics = self.viewmodel.evaluation_result.metrics            
-            print(f'Metrics - CU: {metrics.CU}, DU: {metrics.DU}')
+        self.viewmodel.set__evaluation_result(result)
+        print(f'Metrics - CU: {result.metrics.CU}, DU: {result.metrics.DU}')
+        self.zone_canvas.plot(result.zone, self.viewmodel.resolution, (45,45))
+        self.homogenous_plot_canvas.plot(result.homogenous_plot, self.viewmodel.resolution, (45,45))
 
 # =============================================================================
 # def write_config(self):

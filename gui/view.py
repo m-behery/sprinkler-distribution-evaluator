@@ -9,7 +9,7 @@ Created on Wed Aug  6 03:17:40 2025
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QComboBox, QDoubleSpinBox,
     QTableWidgetItem, QPushButton, QSlider, QStyledItemDelegate, QHBoxLayout,
-    QGridLayout, QGroupBox, QFormLayout, QHeaderView
+    QGridLayout, QGroupBox, QFormLayout, QHeaderView, QFrame
 )
 from PyQt5.QtGui import QColor, QBrush, QDoubleValidator
 from PyQt5.QtCore import Qt, QTimer
@@ -25,19 +25,45 @@ class Canvas4ImageAs3D(FigureCanvas):
     def __init__(self, parent=None, w=5, h=4, dpi=100):
         self.fig = Figure((w, h), dpi)
         super().__init__(self.fig)
-        self.axes = self.fig.add_subplot(111, projection='3d')
+        self.ax = self.fig.add_subplot(111, projection='3d')
+        self.setEnabled(True)
+        
+        self.setFocusPolicy(Qt.StrongFocus)
+        self.setFocus()
+        
+    def mousePressEvent(self, event): pass
+    def mouseReleaseEvent(self, event): pass
+    def mouseDoubleClickEvent(self, event): pass
+    def mouseMoveEvent(self, event): pass
+    def wheelEvent(self, event): pass
     
     def plot(self, image, resolution, deg_angles):
         h, w = image.shape
         x_range, y_range = np.arange(w) / resolution, np.arange(h) / resolution
         x_map, y_map = np.meshgrid(x_range, y_range)
-        ax = self.axes
-        ax.clear()
-        ax.plot_surface(x_map, y_map, image, cmap='viridis', edgecolor='none')
-        ax.view_init(*deg_angles)
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        ax.set_zlabel('Pr (mm/hr)')
+        self.ax.clear()
+        self.ax.plot_surface(x_map, y_map, image, cmap='viridis', edgecolor='none')
+        self.ax.view_init(*deg_angles)
+        self.ax.set_xlabel('x')
+        self.ax.set_ylabel('y')
+        self.ax.set_zlabel('Pr (mm/hr)')
+        self.draw()
+        
+    def keyPressEvent(self, event):
+        step = 1 if event.modifiers() & Qt.ShiftModifier else 5
+        
+        elev, azim = self.ax.elev, self.ax.azim
+
+        if event.key() == Qt.Key_W:      # Tilt up
+            elev += step
+        elif event.key() == Qt.Key_S:    # Tilt down
+            elev -= step
+        elif event.key() == Qt.Key_A:    # Rotate left
+            azim -= step
+        elif event.key() == Qt.Key_D:    # Rotate right
+            azim += step
+
+        self.ax.view_init(elev=elev, azim=azim)
         self.draw()
 
 class NumericDelegate(QStyledItemDelegate):
@@ -302,16 +328,29 @@ class View(QWidget):
 
         # Stretch at bottom
         self.parameters_panel.addStretch()
+        
+        # --- Spacing between panels (invisible gap) ---
+        self.main_layout.addSpacing(24)  # Adjust value for desired gap
 
         # --- Right Panel (Plots) ---
         self.plot_panel = QVBoxLayout()
         self.main_layout.addLayout(self.plot_panel, stretch=2)
-
+        
+        # Zone canvas group
+        self.zone_groupbox_canvas = QGroupBox("Zone")
+        self.zone_groupbox_canvas.setAlignment(Qt.AlignHCenter)  # Center title
+        zone_canvas_layout = QVBoxLayout(self.zone_groupbox_canvas)
         self.zone_canvas = Canvas4ImageAs3D(self)
+        zone_canvas_layout.addWidget(self.zone_canvas)
+        self.plot_panel.addWidget(self.zone_groupbox_canvas)
+        
+        # Homogeneous Plot canvas group
+        self.homogenous_groupbox_canvas = QGroupBox("Homogeneous Plot")
+        self.homogenous_groupbox_canvas.setAlignment(Qt.AlignHCenter)  # Center title
+        homogenous_canvas_layout = QVBoxLayout(self.homogenous_groupbox_canvas)
         self.homogenous_plot_canvas = Canvas4ImageAs3D(self)
-
-        self.plot_panel.addWidget(self.zone_canvas)
-        self.plot_panel.addWidget(self.homogenous_plot_canvas)
+        homogenous_canvas_layout.addWidget(self.homogenous_plot_canvas)
+        self.plot_panel.addWidget(self.homogenous_groupbox_canvas)
 
         # --- Apply global stylesheet for polish ---
         self.setStyleSheet("""
@@ -344,8 +383,6 @@ class View(QWidget):
         sb.setRange(minimum, maximum)
         sb.setMinimumWidth(80)
         return sb
-
-
 
     def bind_viewmodel(self):
         

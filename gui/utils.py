@@ -82,7 +82,7 @@ def read_csv(csv_filepath):
         return table
     except Exception as e:
         logging.error(f'Failed to load CSV file from "{csv_filepath}.\nError Details: {e}"')
-        return np.empty((0,0))
+        return None
 
 def write_csv(filepath:str, table:np.array):
     return np.savetxt(filepath, table, delimiter=',')

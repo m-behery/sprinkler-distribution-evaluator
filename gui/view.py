@@ -8,7 +8,8 @@ Created on Wed Aug  6 03:17:40 2025
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QComboBox, QDoubleSpinBox,
-    QTableWidgetItem, QPushButton, QSlider, QStyledItemDelegate,
+    QTableWidgetItem, QPushButton, QSlider, QStyledItemDelegate, QHBoxLayout,
+    QGridLayout, QGroupBox, QFormLayout, 
 )
 from PyQt5.QtGui import QColor, QBrush, QDoubleValidator
 from PyQt5.QtCore import Qt, QTimer
@@ -71,52 +72,109 @@ class View(QWidget):
         self.evaluation_timer.timeout.connect(self.update_evaluation_result)
         
         self.setWindowTitle('Sprinkler Distribution Evaluator')
-        self.layout = QVBoxLayout()
+        
+        self.main_layout = QHBoxLayout()
+        self.parameters_groupbox = QGroupBox('Parameters')
+        self.parameters_layout = QVBoxLayout()
+        self.parameters_groupbox.setLayout(self.parameters_layout)
         
         self.resolution_label = QLabel('Resolution: 5')
+        self.parameters_layout.addWidget(self.resolution_label)
+        
         self.resolution_slider = QSlider(Qt.Horizontal)
         self.resolution_slider.setRange(5, 100)
+        self.parameters_layout.addWidget(self.resolution_slider)
         
-        self.zone_label = QLabel('Zone Dimesnions:')
+        self.zone_groupbox = QGroupBox('Zone')
+        self.zone_layout   = QVBoxLayout()
+        self.zone_groupbox.setLayout(self.zone_layout)
+        self.parameters_layout.addWidget(self.zone_groupbox)
         
-        self.zone_dim_a_label = QLabel("Width:")
+        self.zone_dim_a_layout = QHBoxLayout()
+        self.zone_layout.addLayout(self.zone_dim_a_layout)
+        
+        self.zone_dim_a_label = QLabel("Width (m):")
+        self.zone_dim_a_label.setFixedWidth(70)
+        self.zone_dim_a_layout.addWidget(self.zone_dim_a_label)
+        
         self.zone_dim_a_spinbox = QDoubleSpinBox()
         self.zone_dim_a_spinbox.setDecimals(2)
         self.zone_dim_a_spinbox.setSingleStep(0.1)
         self.zone_dim_a_spinbox.setRange(1.0, 1e3)
-        self.zone_dim_a_spinbox.setPrefix('Spacing (m): ')
+        self.zone_dim_a_layout.addWidget(self.zone_dim_a_spinbox)
         
-        self.zone_dim_b_label = QLabel("Height:")
+        self.zone_dim_b_layout = QHBoxLayout()
+        self.zone_layout.addLayout(self.zone_dim_b_layout)
+        
+        self.zone_dim_b_label = QLabel("Height (m):")
+        self.zone_dim_b_label.setFixedWidth(70)
+        self.zone_dim_b_layout.addWidget(self.zone_dim_b_label)
+        
         self.zone_dim_b_spinbox = QDoubleSpinBox()
         self.zone_dim_b_spinbox.setDecimals(2)
         self.zone_dim_b_spinbox.setSingleStep(0.1)
         self.zone_dim_b_spinbox.setRange(1.0, 1e3)
-        self.zone_dim_b_spinbox.setPrefix('Spacing (m): ')
+        self.zone_dim_b_layout.addWidget(self.zone_dim_b_spinbox)
         
-        self.config_label = QLabel('Sprinkler Configuration:')
+        self.config_groupbox = QGroupBox('Sprinklers')
+        self.config_layout   = QVBoxLayout()
+        self.config_groupbox.setLayout(self.config_layout)
+        self.parameters_layout.addWidget(self.config_groupbox)
+        
+        self.config_selector_layout = QHBoxLayout()
+        self.config_layout.addLayout(self.config_selector_layout)
+        
+        self.config_selector_label = QLabel("Configuration:")
+        self.config_selector_label.setFixedWidth(70)
+        self.config_selector_layout.addWidget(self.config_selector_label)
+        
         self.config_dropdown = QComboBox()
         self.config_dropdown.addItems(['Triangle', 'Rectangle'])
+        self.config_selector_layout.addWidget(self.config_dropdown)
         
-        self.config_dim_a_label = QLabel("Width:")
+        self.config_dim_a_layout = QHBoxLayout()
+        self.config_layout.addLayout(self.config_dim_a_layout)
+        
+        self.config_dim_a_label = QLabel("Width (m):")
+        self.config_dim_a_label.setFixedWidth(70)
+        self.config_dim_a_layout.addWidget(self.config_dim_a_label)
+        
         self.config_dim_a_spinbox = QDoubleSpinBox()
         self.config_dim_a_spinbox.setDecimals(2)
         self.config_dim_a_spinbox.setSingleStep(0.1)
         self.config_dim_a_spinbox.setRange(0.5, 20.0)
-        self.config_dim_a_spinbox.setPrefix('Spacing (m): ')
+        self.config_dim_a_layout.addWidget(self.config_dim_a_spinbox)
         
-        self.config_dim_b_label = QLabel("Height:")
+        self.config_dim_b_layout = QHBoxLayout()
+        self.config_layout.addLayout(self.config_dim_b_layout)
+        
+        self.config_dim_b_label = QLabel("Height (m):")
+        self.config_dim_b_label.setFixedWidth(70)
+        self.config_dim_b_layout.addWidget(self.config_dim_b_label)
+        
         self.config_dim_b_spinbox = QDoubleSpinBox()
         self.config_dim_b_spinbox.setDecimals(2)
         self.config_dim_b_spinbox.setSingleStep(0.1)
         self.config_dim_b_spinbox.setRange(0.5, 20.0)
-        self.config_dim_b_spinbox.setPrefix('Spacing (m): ')
+        self.config_dim_b_layout.addWidget(self.config_dim_b_spinbox, stretch=50)
         
-        self.Pr_step_label = QLabel("Measurement Step:")
+        self.measurement_groupbox = QGroupBox('Sprinkler Measurements')
+        self.measurement_layout   = QVBoxLayout()
+        self.measurement_groupbox.setLayout(self.measurement_layout)
+        self.parameters_layout.addWidget(self.measurement_groupbox)
+        
+        self.Pr_step_layout = QHBoxLayout()
+        self.measurement_layout.addLayout(self.Pr_step_layout)
+        
+        self.Pr_step_label = QLabel("Step (m):")
+        self.Pr_step_label.setFixedWidth(70)
+        self.Pr_step_layout.addWidget(self.Pr_step_label)
+        
         self.Pr_step_spinbox = QDoubleSpinBox()
         self.Pr_step_spinbox.setDecimals(2)
         self.Pr_step_spinbox.setSingleStep(0.1)
         self.Pr_step_spinbox.setRange(0.1, 20.0)
-        self.Pr_step_spinbox.setPrefix('Spacing (m): ')
+        self.Pr_step_layout.addWidget(self.Pr_step_spinbox)
         
         self.table = QTableWidget()
         self.table.setItemDelegate(NumericDelegate(self.table))
@@ -125,30 +183,18 @@ class View(QWidget):
         self.zone_canvas = Canvas4ImageAs3D(self)
         self.homogenous_plot_canvas = Canvas4ImageAs3D(self)
         
-        self.layout.addWidget(self.resolution_label)
-        self.layout.addWidget(self.resolution_slider)
-        self.layout.addWidget(self.zone_label)
-        self.layout.addWidget(self.zone_dim_a_label)
-        self.layout.addWidget(self.zone_dim_a_spinbox)
-        self.layout.addWidget(self.zone_dim_b_label)
-        self.layout.addWidget(self.zone_dim_b_spinbox)
-        self.layout.addWidget(self.config_label)
-        self.layout.addWidget(self.config_dropdown)
-        self.layout.addWidget(self.config_dim_a_label)
-        self.layout.addWidget(self.config_dim_a_spinbox)
-        self.layout.addWidget(self.config_dim_b_label)
-        self.layout.addWidget(self.config_dim_b_spinbox)
-        self.layout.addWidget(self.Pr_step_label)
-        self.layout.addWidget(self.Pr_step_spinbox)
-        self.layout.addWidget(self.table)
-        self.layout.addWidget(self.apply_button)
-        self.layout.addWidget(self.zone_canvas)
-        self.layout.addWidget(self.homogenous_plot_canvas)
-        
-        self.layout.addStretch()
-        
-        self.setLayout(self.layout)
-        
+        self.parameters_layout.addWidget(self.table)
+        self.parameters_layout.addWidget(self.apply_button)
+        self.parameters_layout.addStretch()
+# =============================================================================
+#         self.layout.addWidget(self.zone_canvas)
+#         self.layout.addWidget(self.homogenous_plot_canvas)
+# =============================================================================
+
+        self.main_layout.addWidget(self.parameters_groupbox)
+        self.setLayout(self.main_layout)
+
+
     def bind_viewmodel(self):
         
         self.resolution_slider.valueChanged.connect(self.viewmodel.set__resolution)
@@ -217,7 +263,7 @@ class View(QWidget):
     
     def on_config_changed(self):
         is_triangle = self.config_dropdown.currentIndex() == 0
-        self.config_dim_a_label.setText('Side:' if is_triangle else 'Width:')
+        self.config_dim_a_label.setText('Side (m):' if is_triangle else 'Width (m):')
         self.config_dim_b_label.setVisible(not is_triangle)
         self.config_dim_b_spinbox.setVisible(not is_triangle)
         self.on_config_dims_changed()
@@ -266,12 +312,8 @@ class View(QWidget):
         total_height = display_rows * self.CELL_SIZE + 21
         total_width = display_cols * self.CELL_SIZE + 25
         self.table.setFixedSize(total_width, total_height)
-        self.resolution_slider.setFixedWidth(total_width)
-        self.config_dropdown.setFixedWidth(total_width)
-        self.config_dim_a_spinbox.setFixedWidth(total_width)
-        self.config_dim_b_spinbox.setFixedWidth(total_width)
-        self.Pr_step_spinbox.setFixedWidth(total_width)
-        self.apply_button.setFixedWidth(total_width)
+        self.parameters_groupbox.setFixedWidth(total_width + 24)
+        self.parameters_groupbox.setFixedHeight(610)
     
         self.table.blockSignals(False)
 

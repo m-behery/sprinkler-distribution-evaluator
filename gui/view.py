@@ -9,7 +9,7 @@ Created on Wed Aug  6 03:17:40 2025
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QComboBox, QDoubleSpinBox,
     QTableWidgetItem, QPushButton, QSlider, QStyledItemDelegate, QHBoxLayout,
-    QGridLayout, QGroupBox, QFormLayout, QHeaderView, QFrame
+    QGridLayout, QGroupBox, QFormLayout, QHeaderView, QFrame, QTextEdit
 )
 from PyQt5.QtGui import QColor, QBrush, QDoubleValidator
 from PyQt5.QtCore import Qt, QTimer
@@ -19,23 +19,17 @@ from utils import write_csv
 from sprinklers import evaluate
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+from utils import INIParser
 
 class Canvas4ImageAs3D(FigureCanvas):
     
-    def __init__(self, parent=None, w=5, h=4, dpi=100):
-        self.fig = Figure((w, h), dpi)
-        super().__init__(self.fig)
-        self.ax = self.fig.add_subplot(111, projection='3d')
-        self.setEnabled(True)
+    def __init__(self, parent=None, w=5, h=4, dpi=100, minimum_width=500):
+        fig = Figure((w, h), dpi)
+        super().__init__(fig)
         
+        self.ax = fig.add_subplot(111, projection='3d')
         self.setFocusPolicy(Qt.StrongFocus)
-        self.setFocus()
-        
-    def mousePressEvent(self, event): pass
-    def mouseReleaseEvent(self, event): pass
-    def mouseDoubleClickEvent(self, event): pass
-    def mouseMoveEvent(self, event): pass
-    def wheelEvent(self, event): pass
+        self.setMinimumWidth(minimum_width)
     
     def plot(self, image, resolution, deg_angles):
         h, w = image.shape
@@ -44,27 +38,46 @@ class Canvas4ImageAs3D(FigureCanvas):
         self.ax.clear()
         self.ax.plot_surface(x_map, y_map, image, cmap='viridis', edgecolor='none')
         self.ax.view_init(*deg_angles)
-        self.ax.set_xlabel('x')
-        self.ax.set_ylabel('y')
+        self.ax.set_xlabel('x (m)')
+        self.ax.set_ylabel('y (m)')
         self.ax.set_zlabel('Pr (mm/hr)')
         self.draw()
         
+    def mousePressEvent(self, event):       pass
+    def mouseReleaseEvent(self, event):     pass
+    def mouseDoubleClickEvent(self, event): pass
+    def mouseMoveEvent(self, event):        pass
+    def wheelEvent(self, event):            pass
+    
     def keyPressEvent(self, event):
-        step = 1 if event.modifiers() & Qt.ShiftModifier else 5
-        
+        degrees = 5
+        shift_pressed = event.modifiers() & Qt.ShiftModifier
+        if shift_pressed:
+            degrees = 1
+            
         elev, azim = self.ax.elev, self.ax.azim
+        
+        key_pressed = event.key()
+        match key_pressed:
+            case Qt.Key_W:
+                elev += degrees
+            case Qt.Key_S:
+                elev -= degrees
+            case Qt.Key_A:
+                azim -= degrees
+            case Qt.Key_D:
+                azim += degrees
 
-        if event.key() == Qt.Key_W:      # Tilt up
-            elev += step
-        elif event.key() == Qt.Key_S:    # Tilt down
-            elev -= step
-        elif event.key() == Qt.Key_A:    # Rotate left
-            azim -= step
-        elif event.key() == Qt.Key_D:    # Rotate right
-            azim += step
-
-        self.ax.view_init(elev=elev, azim=azim)
+        self.ax.view_init(elev, azim)
         self.draw()
+    
+class DoubleSpinBox(QDoubleSpinBox):
+    def __init__(self, minimum, maximum, decimals=2, single_step=0.1, minimum_width=80):
+        super().__init__()
+        self.setDecimals(decimals)
+        self.setSingleStep(single_step)
+        self.setRange(minimum, maximum)
+        self.setMinimumWidth(minimum_width)
 
 class NumericDelegate(QStyledItemDelegate):
     def createEditor(self, parent, option, index):
@@ -79,154 +92,20 @@ class NumericDelegate(QStyledItemDelegate):
 
 class View(QWidget):
     
-    EVAL_DELAY = 1000
-    CELL_SIZE = 40
+    EVAL_DELAY        = 1000
+    CELL_SIZE         = 40
     MAX_DISPLAY_LIMIT = 10
     MIN_DISPLAY_LIMIT = 3
     
-    def __init__(self, viewmodel:ViewModel):
+    def __init__(self, viewmodel:ViewModel, config_parser:INIParser):
         super().__init__()
         self.zero_input_flag = False
         self.viewmodel = viewmodel
+        self.config_parser = config_parser
         self.init_ui()
         self.bind_viewmodel()
     
     def init_ui(self):
-        
-# =============================================================================
-#         self.evaluation_timer = QTimer(self)
-#         self.evaluation_timer.setSingleShot(True)
-#         self.evaluation_timer.timeout.connect(self.update_evaluation_result)
-#         
-#         self.setWindowTitle('Sprinkler Distribution Evaluator')
-#         
-#         self.main_layout = QHBoxLayout()
-#         self.setLayout(self.main_layout)
-#         
-#         self.parameters_wrapper_layout = QVBoxLayout()
-#         self.main_layout.addLayout(self.parameters_wrapper_layout)
-#         
-#         self.parameters_groupbox = QGroupBox('Parameters')
-#         self.parameters_wrapper_layout.addWidget(self.parameters_groupbox)
-#         self.parameters_wrapper_layout.addStretch()
-#         
-#         self.parameters_layout = QVBoxLayout()
-#         self.parameters_groupbox.setLayout(self.parameters_layout)
-#         
-#         self.resolution_label = QLabel('Resolution: 5')
-#         self.parameters_layout.addWidget(self.resolution_label)
-#         
-#         self.resolution_slider = QSlider(Qt.Horizontal)
-#         self.resolution_slider.setRange(5, 100)
-#         self.parameters_layout.addWidget(self.resolution_slider)
-#         
-#         self.zone_groupbox = QGroupBox('Zone')
-#         self.zone_layout   = QVBoxLayout()
-#         self.zone_groupbox.setLayout(self.zone_layout)
-#         self.parameters_layout.addWidget(self.zone_groupbox)
-#         
-#         self.zone_dim_a_layout = QHBoxLayout()
-#         self.zone_layout.addLayout(self.zone_dim_a_layout)
-#         
-#         self.zone_dim_a_label = QLabel("Width (m):")
-#         self.zone_dim_a_label.setFixedWidth(70)
-#         self.zone_dim_a_layout.addWidget(self.zone_dim_a_label)
-#         
-#         self.zone_dim_a_spinbox = QDoubleSpinBox()
-#         self.zone_dim_a_spinbox.setDecimals(2)
-#         self.zone_dim_a_spinbox.setSingleStep(0.1)
-#         self.zone_dim_a_spinbox.setRange(1.0, 1e3)
-#         self.zone_dim_a_layout.addWidget(self.zone_dim_a_spinbox)
-#         
-#         self.zone_dim_b_layout = QHBoxLayout()
-#         self.zone_layout.addLayout(self.zone_dim_b_layout)
-#         
-#         self.zone_dim_b_label = QLabel("Height (m):")
-#         self.zone_dim_b_label.setFixedWidth(70)
-#         self.zone_dim_b_layout.addWidget(self.zone_dim_b_label)
-#         
-#         self.zone_dim_b_spinbox = QDoubleSpinBox()
-#         self.zone_dim_b_spinbox.setDecimals(2)
-#         self.zone_dim_b_spinbox.setSingleStep(0.1)
-#         self.zone_dim_b_spinbox.setRange(1.0, 1e3)
-#         self.zone_dim_b_layout.addWidget(self.zone_dim_b_spinbox)
-#         
-#         self.config_groupbox = QGroupBox('Sprinklers')
-#         self.config_layout   = QVBoxLayout()
-#         self.config_groupbox.setLayout(self.config_layout)
-#         self.parameters_layout.addWidget(self.config_groupbox)
-#         
-#         self.config_selector_layout = QHBoxLayout()
-#         self.config_layout.addLayout(self.config_selector_layout)
-#         
-#         self.config_selector_label = QLabel("Configuration:")
-#         self.config_selector_label.setFixedWidth(70)
-#         self.config_selector_layout.addWidget(self.config_selector_label)
-#         
-#         self.config_dropdown = QComboBox()
-#         self.config_dropdown.addItems(['Triangle', 'Rectangle'])
-#         self.config_selector_layout.addWidget(self.config_dropdown)
-#         
-#         self.config_dim_a_layout = QHBoxLayout()
-#         self.config_layout.addLayout(self.config_dim_a_layout)
-#         
-#         self.config_dim_a_label = QLabel("Width (m):")
-#         self.config_dim_a_label.setFixedWidth(70)
-#         self.config_dim_a_layout.addWidget(self.config_dim_a_label)
-#         
-#         self.config_dim_a_spinbox = QDoubleSpinBox()
-#         self.config_dim_a_spinbox.setDecimals(2)
-#         self.config_dim_a_spinbox.setSingleStep(0.1)
-#         self.config_dim_a_spinbox.setRange(0.5, 20.0)
-#         self.config_dim_a_layout.addWidget(self.config_dim_a_spinbox)
-#         
-#         self.config_dim_b_layout = QHBoxLayout()
-#         self.config_layout.addLayout(self.config_dim_b_layout)
-#         
-#         self.config_dim_b_label = QLabel("Height (m):")
-#         self.config_dim_b_label.setFixedWidth(70)
-#         self.config_dim_b_layout.addWidget(self.config_dim_b_label)
-#         
-#         self.config_dim_b_spinbox = QDoubleSpinBox()
-#         self.config_dim_b_spinbox.setDecimals(2)
-#         self.config_dim_b_spinbox.setSingleStep(0.1)
-#         self.config_dim_b_spinbox.setRange(0.5, 20.0)
-#         self.config_dim_b_layout.addWidget(self.config_dim_b_spinbox, stretch=50)
-#         
-#         self.measurement_groupbox = QGroupBox('Sprinkler Measurements')
-#         self.measurement_layout   = QVBoxLayout()
-#         self.measurement_groupbox.setLayout(self.measurement_layout)
-#         self.parameters_layout.addWidget(self.measurement_groupbox)
-#         
-#         self.Pr_step_layout = QHBoxLayout()
-#         self.measurement_layout.addLayout(self.Pr_step_layout)
-#         
-#         self.Pr_step_label = QLabel("Step (m):")
-#         self.Pr_step_label.setFixedWidth(70)
-#         self.Pr_step_layout.addWidget(self.Pr_step_label)
-#         
-#         self.Pr_step_spinbox = QDoubleSpinBox()
-#         self.Pr_step_spinbox.setDecimals(2)
-#         self.Pr_step_spinbox.setSingleStep(0.1)
-#         self.Pr_step_spinbox.setRange(0.1, 20.0)
-#         self.Pr_step_layout.addWidget(self.Pr_step_spinbox)
-#         
-#         self.table = QTableWidget()
-#         self.table.setItemDelegate(NumericDelegate(self.table))
-#         self.measurement_layout.addWidget(self.table)
-#         
-#         self.apply_button = QPushButton('Export Table')
-#         self.measurement_layout.addWidget(self.apply_button)
-#         
-#         self.zone_canvas = Canvas4ImageAs3D(self)
-#         self.homogenous_plot_canvas = Canvas4ImageAs3D(self)
-# =============================================================================
-        
-# =============================================================================
-#         self.layout.addWidget(self.zone_canvas)
-#         self.layout.addWidget(self.homogenous_plot_canvas)
-# =============================================================================
-
         # --- Window setup ---
         self.setWindowTitle("💧 Sprinkler Distribution Evaluator")
         self.resize(900, 600)
@@ -245,9 +124,9 @@ class View(QWidget):
         self.parameters_panel.setSpacing(12)
         self.main_layout.addLayout(self.parameters_panel, stretch=1)
 
-        # ================= PARAMETERS =================
-        self.parameters_groupbox = QGroupBox("General")
-        self.parameters_layout = QVBoxLayout(self.parameters_groupbox)
+        # ================= GENERAL ==============
+        self.general_groupbox = QGroupBox("General")
+        self.parameters_layout = QVBoxLayout(self.general_groupbox)
 
         # Resolution
         self.resolution_label = QLabel("Resolution: 5")
@@ -256,16 +135,16 @@ class View(QWidget):
 
         self.parameters_layout.addWidget(self.resolution_label)
         self.parameters_layout.addWidget(self.resolution_slider)
-        self.parameters_panel.addWidget(self.parameters_groupbox)
+        self.parameters_panel.addWidget(self.general_groupbox)
 
         # ================= ZONE =================
         self.zone_groupbox = QGroupBox("Zone")
         zone_form = QFormLayout(self.zone_groupbox)
 
-        self.zone_dim_a_spinbox = self._make_spinbox(1.0, 1000.0)
+        self.zone_dim_a_spinbox = DoubleSpinBox(1.0, 1000.0)
         zone_form.addRow("Width (m):", self.zone_dim_a_spinbox)
 
-        self.zone_dim_b_spinbox = self._make_spinbox(1.0, 1000.0)
+        self.zone_dim_b_spinbox = DoubleSpinBox(1.0, 1000.0)
         zone_form.addRow("Height (m):", self.zone_dim_b_spinbox)
 
         self.parameters_panel.addWidget(self.zone_groupbox)
@@ -287,7 +166,7 @@ class View(QWidget):
         self.config_dim_a_layout = QHBoxLayout()
         self.config_dim_a_label = QLabel("Width (m):")
         self.config_dim_a_label.setFixedWidth(70)
-        self.config_dim_a_spinbox = self._make_spinbox(0.5, 20.0)
+        self.config_dim_a_spinbox = DoubleSpinBox(0.5, 20.0)
         self.config_dim_a_layout.addWidget(self.config_dim_a_label)
         self.config_dim_a_layout.addWidget(self.config_dim_a_spinbox)
         config_layout.addLayout(self.config_dim_a_layout)
@@ -296,7 +175,7 @@ class View(QWidget):
         self.config_dim_b_layout = QHBoxLayout()
         self.config_dim_b_label = QLabel("Height (m):")
         self.config_dim_b_label.setFixedWidth(70)
-        self.config_dim_b_spinbox = self._make_spinbox(0.5, 20.0)
+        self.config_dim_b_spinbox = DoubleSpinBox(0.5, 20.0)
         self.config_dim_b_layout.addWidget(self.config_dim_b_label)
         self.config_dim_b_layout.addWidget(self.config_dim_b_spinbox)
         config_layout.addLayout(self.config_dim_b_layout)
@@ -308,9 +187,11 @@ class View(QWidget):
         measurement_layout = QVBoxLayout(self.measurement_groupbox)
 
         form = QFormLayout()
-        self.Pr_step_spinbox = self._make_spinbox(0.1, 20.0)
+        self.Pr_step_spinbox = DoubleSpinBox(0.1, 20.0)
         form.addRow("Step (m):", self.Pr_step_spinbox)
         measurement_layout.addLayout(form)
+        
+        measurement_layout.addSpacing(10)  # Adjust value for desired gap
 
         # Table
         self.table = QTableWidget()
@@ -325,6 +206,22 @@ class View(QWidget):
         measurement_layout.addWidget(self.apply_button)
 
         self.parameters_panel.addWidget(self.measurement_groupbox)
+        
+        # ================= EXPORT CONFIG =================
+        self.export_config_button = QPushButton("📑 Export Config")
+        self.export_config_button.setStyleSheet("""
+            QPushButton {
+                padding: 6px 12px;
+                font-weight: bold;
+                border-radius: 6px;
+                background-color: #607d8b;   /* Medium gray-blue */
+                color: white;
+            }
+            QPushButton:hover {
+                background-color: #546e7a;   /* Darker on hover */
+            }
+        """)
+        self.parameters_panel.addWidget(self.export_config_button)
 
         # Stretch at bottom
         self.parameters_panel.addStretch()
@@ -375,14 +272,43 @@ class View(QWidget):
                 background-color: #45a049;
             }
         """)
-
-    def _make_spinbox(self, minimum, maximum):
-        sb = QDoubleSpinBox()
-        sb.setDecimals(2)
-        sb.setSingleStep(0.1)
-        sb.setRange(minimum, maximum)
-        sb.setMinimumWidth(80)
-        return sb
+        
+        # --- Spacing between panels (invisible gap) ---
+        self.main_layout.addSpacing(8)  # Adjust value for desired gap
+        
+        # --- Metrics Panel (Rightmost side) ---
+        self.metrics_panel = QVBoxLayout()
+        
+        # Title label
+        self.metrics_label = QLabel("Metrics")
+        self.metrics_label.setAlignment(Qt.AlignHCenter)
+        self.metrics_label.setStyleSheet("""
+            QLabel {
+                font-weight: bold;
+                font-size: 13px;
+                color: #222;
+            }
+        """)
+        self.metrics_panel.addWidget(self.metrics_label)
+        
+        # Textbox
+        self.metrics_textbox = QTextEdit()
+        self.metrics_textbox.setReadOnly(True)
+        self.metrics_textbox.setFixedWidth(220)  # adjust width as needed
+        self.metrics_textbox.setStyleSheet("""
+            QTextEdit {
+                background-color: black;
+                color: white;
+                font-family: Consolas, monospace;
+                font-size: 13px;
+                border-radius: 6px;
+                padding: 6px;
+            }
+        """)
+        self.metrics_panel.addWidget(self.metrics_textbox)
+        
+        # Add to main layout (far right)
+        self.main_layout.addLayout(self.metrics_panel, stretch=0)
 
     def bind_viewmodel(self):
         
@@ -429,6 +355,7 @@ class View(QWidget):
         self.update_table(self.viewmodel.Pr_grid)
         
         self.apply_button.clicked.connect(self.on_apply_button_clicked)
+        self.export_config_button.clicked.connect(self.export_config)
         
     def on_Pr_step_changed(self):
         self.viewmodel.set__Pr_step(self.Pr_step_spinbox.value())
@@ -501,7 +428,7 @@ class View(QWidget):
         total_height = display_rows * self.CELL_SIZE + 21
         total_width = display_cols * self.CELL_SIZE + 35
         self.table.setFixedSize(total_width, total_height)
-        self.parameters_groupbox.setFixedWidth(total_width + 24)
+        self.general_groupbox.setFixedWidth(total_width + 24)
         self.zone_groupbox.setFixedWidth(total_width + 24)
         self.config_groupbox.setFixedWidth(total_width + 24)
         self.measurement_groupbox.setFixedWidth(total_width + 24)
@@ -570,16 +497,24 @@ class View(QWidget):
             self.viewmodel.Pr_table
         )
         self.viewmodel.set__evaluation_result(result)
-        print(f'Metrics - CU: {result.metrics.CU}, DU: {result.metrics.DU}')
-        self.zone_canvas.plot(result.zone, self.viewmodel.resolution, (45,45))
-        self.homogenous_plot_canvas.plot(result.homogenous_plot, self.viewmodel.resolution, (45,45))
+    
+        # --- Update metrics display instead of printing ---
+        metrics_text = (
+            "💧 Uniformaity\n"
+            "----------------------\n"
+            f"Christiansen Uniformity (CU): {result.metrics.CU:.2f} %\n"
+            f"Distribution Uniformity (DU): {result.metrics.DU:.2f} %\n"
+        )
+        self.metrics_textbox.setPlainText(metrics_text)
+    
+        # --- Update plots ---
+        self.zone_canvas.plot(result.zone, self.viewmodel.resolution, (45, 45))
+        self.homogenous_plot_canvas.plot(result.homogenous_plot, self.viewmodel.resolution, (45, 45))
 
-# =============================================================================
-# def write_config(self):
-#     serialize_floats = lambda floats: ', '.join(map(str, floats))
-#     self.parser.set('Display', 'RESOLUTION', str(self.resolution))
-#     self.parser.set('Sprinklers', 'ZONE_DIM_METERS', serialize_floats(self.zone_dim_meters))
-#     self.parser.set('Sprinklers', 'CONFIG_METERS', serialize_floats(self.config_meters))
-#     self.parser.set('Sprinklers', 'CSV_FILEPATH', self.csv_filepath)
-#     self.parser.write()
-# =============================================================================
+    def export_config(self):
+        serialize_floats = lambda floats: ', '.join(map(str, floats))
+        self.config_parser.set('Display', 'RESOLUTION', str(self.viewmodel.resolution))
+        self.config_parser.set('Sprinklers', 'ZONE_DIM_METERS', serialize_floats(self.viewmodel.zone_dim_meters))
+        self.config_parser.set('Sprinklers', 'CONFIG_METERS', serialize_floats(self.viewmodel.config_meters))
+        self.config_parser.set('Sprinklers', 'CSV_FILEPATH', self.viewmodel.csv_filepath)
+        self.config_parser.write()

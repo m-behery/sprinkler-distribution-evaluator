@@ -22,7 +22,7 @@ def main():
         csv_filepath     = parser.clean_inline_get('Sprinklers', 'CSV_FILEPATH'),
     )
     viewmodel = ViewModel(model)
-    view = View(viewmodel)
+    view = View(viewmodel, parser)
     
     view.show()
     sys.exit(app.exec_())

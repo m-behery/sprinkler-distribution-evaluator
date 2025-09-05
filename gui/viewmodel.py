@@ -21,10 +21,6 @@ class ViewModel(QObject):
     Pr_step__changed           = pyqtSignal(float)
     Pr_grid__changed           = pyqtSignal(object)
     evaluation_result__changed = pyqtSignal(object)
-# =============================================================================
-#     autowrite_config__changed   = pyqtSignal(bool)
-#     autoeval__changed          = pyqtSignal(bool)
-# =============================================================================
     
     def __init__(self, model:Model):
         super().__init__()
@@ -132,30 +128,4 @@ class ViewModel(QObject):
     evaluation_result = pyqtProperty('QVariant', fget=get__evaluation_result,
                                      fset=set__evaluation_result,
                                      notify=evaluation_result__changed)
-    
-# =============================================================================
-#     def get__autowrite_config(self):
-#         return self._model.autowrite_config
-#     
-#     def set__autowrite_config(self, value:bool):
-#         if self._model.autowrite_config != value:
-#             self._model.autowrite_config = value
-#             self.autowrite_config__changed.emit(value)
-#     
-#     autowrite_config = pyqtProperty(bool, fget=get__autowrite_config,
-#                                    fset=set__autowrite_config,
-#                                    notify=autowrite_config__changed)
-#     
-#     def get__autoeval(self):
-#         return self._model.autoeval
-#     
-#     def set__autoeval(self, value:bool):
-#         if self._model.autoeval != value:
-#             self._model.autoeval = value
-#             self.autoeval__changed.emit(value)
-#     
-#     autoeval = pyqtProperty(bool, fget=get__autoeval,
-#                             fset=set__autoeval,
-#                             notify=autoeval__changed)
-# =============================================================================
     

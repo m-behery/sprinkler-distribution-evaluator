@@ -32,6 +32,10 @@ def Pr_grid_to_table(Pr_grid, Pr_step):
     return Pr_table
 
 def Pr_table_to_quadrant(Pr_table, resolution):
+    
+    if Pr_table is None:
+        return np.zeros((2,2))
+    
     yx_positions = (Pr_table[:,:2][:,::-1] * resolution).astype('int')
     Pr_values = Pr_table[:,-1]
     

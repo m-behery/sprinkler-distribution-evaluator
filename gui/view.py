@@ -9,9 +9,10 @@ Created on Wed Aug  6 03:17:40 2025
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QComboBox, QDoubleSpinBox,
     QTableWidgetItem, QPushButton, QSlider, QStyledItemDelegate, QHBoxLayout,
-    QGridLayout, QGroupBox, QFormLayout, QHeaderView, QFrame, QTextEdit
+    QGridLayout, QGroupBox, QFormLayout, QHeaderView, QFrame, QTextEdit, 
+    QLineEdit, QSizePolicy, QFileDialog,
 )
-from PyQt5.QtGui import QColor, QBrush, QDoubleValidator
+from PyQt5.QtGui import QColor, QBrush, QDoubleValidator, QIcon
 from PyQt5.QtCore import Qt, QTimer
 import numpy as np
 from viewmodel import ViewModel
@@ -185,6 +186,26 @@ class View(QWidget):
         # ================= MEASUREMENTS =================
         self.measurement_groupbox = QGroupBox("Pr Measurements")
         measurement_layout = QVBoxLayout(self.measurement_groupbox)
+        
+        csv_layout = QHBoxLayout()
+        self.csv_path_edit = QLineEdit()
+        self.csv_path_edit.setPlaceholderText("Select your CSV file...")
+        self.csv_browse_button = QPushButton()
+        self.csv_browse_button.setIcon(QIcon.fromTheme("folder"))  # uses system folder icon
+        self.csv_browse_button.setFixedWidth(25)
+        self.csv_path_edit.setFixedHeight(25)
+        csv_layout.addWidget(self.csv_path_edit, stretch=1)
+        csv_layout.addWidget(self.csv_browse_button)
+        measurement_layout.addLayout(csv_layout)
+        
+        measurement_layout.addSpacing(10)  # Adjust value for desired gap
+        
+        separator = QFrame()
+        separator.setFrameShape(QFrame.HLine)
+        separator.setFrameShadow(QFrame.Sunken)
+        measurement_layout.addWidget(separator)
+        
+        measurement_layout.addSpacing(10)  # Adjust value for desired gap
 
         form = QFormLayout()
         self.Pr_step_spinbox = DoubleSpinBox(0.1, 20.0)
@@ -203,6 +224,18 @@ class View(QWidget):
 
         # Export button
         self.apply_button = QPushButton("📤 Export Table")
+        self.apply_button.setStyleSheet("""
+            QPushButton {
+                padding: 6px 12px;
+                font-weight: bold;
+                border-radius: 6px;
+                background-color: #4caf50;
+                color: white;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }                                
+        """)
         measurement_layout.addWidget(self.apply_button)
 
         self.parameters_panel.addWidget(self.measurement_groupbox)
@@ -260,16 +293,6 @@ class View(QWidget):
             }
             QLabel {
                 font-size: 13px;
-            }
-            QPushButton {
-                padding: 6px 12px;
-                font-weight: bold;
-                border-radius: 6px;
-                background-color: #4caf50;
-                color: white;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
             }
         """)
         
@@ -339,6 +362,16 @@ class View(QWidget):
         self.viewmodel.config_meters__changed.connect(self.on_param_changed__config_meters)
         self.viewmodel.config_meters__changed.emit(self.viewmodel.config_meters)
         self.on_config_changed()
+        
+        self.csv_path_edit.editingFinished.connect(self.viewmodel.set__csv_filepath)
+        self.viewmodel.csv_filepath__changed.connect(
+            lambda value: (
+                self.csv_path_edit.setText(value),
+                self.evaluation_timer.start(self.EVAL_DELAY),
+            )
+        )
+        self.viewmodel.csv_filepath__changed.emit(self.viewmodel.csv_filepath)
+        self.csv_browse_button.clicked.connect(self.select_csv_file)
         
         self.Pr_step_spinbox.valueChanged.connect(self.viewmodel.set__Pr_step)
         self.viewmodel.Pr_step__changed.connect(
@@ -442,6 +475,16 @@ class View(QWidget):
 
     def on_apply_button_clicked(self):
         write_csv(self.viewmodel.csv_filepath, self.viewmodel.Pr_table)
+        
+    def select_csv_file(self):
+        filepath, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select CSV File",
+            "",
+            "CSV Files (*.csv);;All Files (*)"
+        )
+        if filepath:
+            self.csv_path_edit.setText(filepath)
         
     def update_Pr_grid(self):
         rows = self.table.rowCount()

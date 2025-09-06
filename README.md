@@ -1,6 +1,3 @@
-Here’s a comprehensive **README.md** template for your sprinkler distribution evaluator project based on the code you’ve shared. It’s tailored for clarity, structure, and ease of use:
-
-````markdown
 # 💧 Sprinkler Distribution Evaluator
 
 A PyQt5-based tool to **visualize, evaluate, and analyze sprinkler distribution** over irrigation zones. It provides 3D surface plots, uniformity metrics, and CSV export for detailed evaluation.

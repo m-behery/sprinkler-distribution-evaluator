@@ -8,12 +8,32 @@ Created on Sat Sep  6 18:39:37 2025
 
 from typing import Final
 
-class Themes:
-    
+class StaticClass:
+    """
+    Base class for static-like containers that should not be instantiated.
+    """
     def __new__(self):
-        raise NotImplementedError('ThemeDetector is a static class')
+        raise NotImplementedError('This is a static class that cannot be instantiated.')
+
+class Evaluation(StaticClass):
+    """
+    Evaluation-related constants.
+    """
+    DELAY_MS: Final = 1000
     
-    LIGHT: Final = """
+class Cells(StaticClass):
+    """
+    Cell/table display constants.
+    """
+    SIZE: Final          = 40
+    MAX_DISPLAYED: Final = 10
+    MIN_DISPLAYED: Final = 3
+
+class Themes(StaticClass):
+    """
+    Application-wide stylesheet definitions.
+    """
+    LIGHT: Final = '''
         QWidget {
             background-color: #f0f2f5;   /* window bg: light neutral gray */
             font-size: 13px;
@@ -54,7 +74,7 @@ class Themes:
             border-radius: 2px;
         }
         
-        QLabel#metricsLabel {
+        QLabel#metrics_label {
             font-weight: bold;
             font-size: 13px;           
             background-color: transparent;
@@ -92,41 +112,41 @@ class Themes:
             color: white;
         }
         
-        QPushButton#csvBrowse {
+        QPushButton#csv_browse_button {
             qproperty-iconSize: 16px;
             border: 1px solid #c8cace;
             border-radius: 4px;
             background-color: #e6e8eb;
             color: #111;
         }
-        QPushButton#csvBrowse:hover {
+        QPushButton#csv_browse_button:hover {
             background-color: #d6d8db;
         }
-        QPushButton#csvBrowse:pressed {
+        QPushButton#csv_browse_button:pressed {
             background-color: #c6c8cc;
         }
 
-        QPushButton#applyButton {
+        QPushButton#export_csv_button {
             background-color: #4caf50;
         }
-        QPushButton#applyButton:hover {
+        QPushButton#export_csv_button:hover {
             background-color: #45a049;
         }
-        QPushButton#applyButton:pressed {
+        QPushButton#export_csv_button:pressed {
             background-color: #388e3c;
         }
         
-        QPushButton#exportConfig {
+        QPushButton#export_config_button {
             background-color: #607d8b;
         }
-        QPushButton#exportConfig:hover {
+        QPushButton#export_config_button:hover {
             background-color: #546e7a;
         }
-        QPushButton#exportConfig:pressed {
+        QPushButton#export_config_button:pressed {
             background-color: #455a64;
         }
 
         QComboBox QAbstractItemView {
             selection-color: #111;
         }
-        """
+        '''

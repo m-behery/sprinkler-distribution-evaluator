@@ -11,33 +11,56 @@ import os
 import numpy as np
 import pandas as pd
 import logging
-import matplotlib.pyplot as plt
 
 class INIParser(ConfigParser):
-    
+    """
+    Extended ConfigParser that provides additional convenience methods for
+    reading/writing config values with inline comments removed and type conversion.
+    """
     def clean_inline_get(self, section, option):
+        """
+        Read a value from the given section/option, removing any inline comments
+        (both '#' and ';') and stripping whitespace.
+        """
         value = self.get(section, option)
         value = value.split('#')[0].split(';')[0]
         return value.strip()
     
     def getint(self, section, option):
+        """
+        Read an integer value from the config.
+        """
         value = self.clean_inline_get(section, option)
         return int(value)
     
     def gettuple(self, section, option, type_=float):
+        """
+        Read a comma-separated value and convert it into a tuple of the given type.
+        Default type is float.
+        """
         value = self.clean_inline_get(section, option)
         return tuple(type_(p) for p in value.split(','))
     
     def read(self):
+        """
+        Read the configuration file from the standard config filepath.
+        """
         with open(self.config_filepath, 'r') as f:
             super().read_file(f)
     
     def write(self):
+        """
+        Write the configuration back to the file, preserving spacing around delimiters.
+        """
         with open(self.config_filepath, 'w') as f:
             super().write(f, space_around_delimiters=True)
     
     @property
     def config_filepath(self):
+        """
+        Returns the full path to the configuration file (config.ini) located in the
+        same directory as this script.
+        """
         try:
             current_dirpath = os.path.dirname(
                 os.path.abspath(__file__)
@@ -47,9 +70,30 @@ class INIParser(ConfigParser):
             logging.error(f"Failed to write config to {self.config_filepath}: {e}")
 
 def are_instances(type_, *objs):
+    """
+    Check if all provided objects are instances of the given type.
+    
+    Parameters:
+        type_: Type to check against (e.g., int, str, Namespace)
+        *objs: Any number of objects to check
+    
+    Returns:
+        bool: True if all objects are of the given type, False otherwise
+    """
     return all(map(lambda x: isinstance(x, type_), objs))
 
 def namespace_equal(ns1, ns2):
+    """
+    Recursively compare two argparse.Namespace objects for equality.
+
+    Allowed value types: Namespace, np.ndarray, int, float, str.
+
+    Parameters:
+        ns1, ns2: Namespace objects to compare
+
+    Returns:
+        bool: True if both namespaces are equal, False otherwise
+    """
     if not are_instances(Namespace, ns1, ns2):
         return False
     ns1_keys, ns2_keys = map(lambda x: set(x.__dict__.keys()), (ns1, ns2))
@@ -74,8 +118,16 @@ def namespace_equal(ns1, ns2):
             return False
     return True
 
-
 def read_csv(csv_filepath):
+    """
+    Read a CSV file into a numpy array.
+
+    Parameters:
+        csv_filepath: Path to the CSV file
+
+    Returns:
+        np.ndarray: CSV data as a 2D array, or None if loading fails
+    """
     try:
         table = pd.read_csv(csv_filepath, header=None)
         table = table.values
@@ -85,4 +137,11 @@ def read_csv(csv_filepath):
         return None
 
 def write_csv(filepath:str, table:np.array):
+    """
+    Save a numpy array to a CSV file.
+
+    Parameters:
+        filepath: Path to save the CSV file
+        table: 2D numpy array to save
+    """
     return np.savetxt(filepath, table, delimiter=',')

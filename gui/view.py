@@ -7,27 +7,40 @@ Created on Wed Aug  6 03:17:40 2025
 """
 
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QTableWidget, QComboBox, QDoubleSpinBox,
-    QTableWidgetItem, QPushButton, QSlider, QStyledItemDelegate, QHBoxLayout,
-    QGridLayout, QGroupBox, QFormLayout, QHeaderView, QFrame, QTextEdit, 
-    QLineEdit, QSizePolicy, QFileDialog, QApplication,
+    QWidget, QVBoxLayout, QLabel, QTableWidget, QComboBox, QTableWidgetItem,
+    QPushButton, QSlider, QStyledItemDelegate, QHBoxLayout, QGroupBox,
+    QFormLayout, QFrame, QTextEdit, QLineEdit, QFileDialog, 
 )
-from PyQt5.QtGui import QColor, QBrush, QDoubleValidator, QIcon, QPalette
+from PyQt5.QtGui import QColor, QBrush, QDoubleValidator
 from PyQt5.QtCore import Qt, QTimer
 import numpy as np
-from viewmodel import ViewModel
-from utils import write_csv
-from sprinklers import evaluate
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-from utils import INIParser
-from typing import Final
 
+from viewmodel import ViewModel
+from utils import INIParser
+from sprinklers import evaluate
+from utils import write_csv
 from widgets import DoubleSpinBox, SimpleHeader, RotatedHeader, Canvas4ImageAs3D
-from constants import Themes
+import constants
 
 class NumericDelegate(QStyledItemDelegate):
+    """
+    A custom delegate for QTableView/QTableWidget that enforces numeric input.
+    
+    This delegate ensures that table cells edited by the user only accept floating-point numbers
+    within a specific range and with a fixed number of decimal places.
+    """
     def createEditor(self, parent, option, index):
+        """
+        Create an editor widget for a table cell.
+
+        Parameters:
+        - parent: the parent widget
+        - option: QStyleOptionViewItem describing the item
+        - index: QModelIndex identifying the item being edited
+
+        Returns:
+        - A QWidget editor with a numeric validator applied.
+        """
         editor = super().createEditor(parent, option, index)
         if editor:
             validator = QDoubleValidator(editor)
@@ -38,262 +51,87 @@ class NumericDelegate(QStyledItemDelegate):
         return editor
     
 class View(QWidget):
-    
-    EVAL_DELAY        = 1000
-    CELL_SIZE         = 40
-    MAX_DISPLAY_LIMIT = 10
-    MIN_DISPLAY_LIMIT = 3
-    
     def __init__(self, viewmodel:ViewModel, config_parser:INIParser):
+        """
+        Initialize the main view.
+    
+        Parameters:
+        - viewmodel: The ViewModel instance providing data and logic binding
+        - config_parser: The INIParser instance for reading/writing configuration
+    
+        Responsibilities:
+        1. Store references to the viewmodel and config parser for later use.
+        2. Initialize internal flags, e.g., `zero_input_flag`.
+        3. Set up the user interface by calling `init_ui()`.
+        4. Connect UI elements to the ViewModel via `bind_viewmodel()`.
+        """
         super().__init__()
         self.zero_input_flag = False
-        self.viewmodel = viewmodel
+        
+        self.viewmodel    = viewmodel
         self.config_parser = config_parser
+        
         self.init_ui()
         self.bind_viewmodel()
-    
-# =============================================================================
-#     def init_ui(self):
-#         # --- Window setup ---
-#         self.setWindowTitle("💧 Sprinkler Distribution Evaluator")
-#         self.resize(900, 600)
-# 
-#         # --- Timer ---
-#         self.evaluation_timer = QTimer(self)
-#         self.evaluation_timer.setSingleShot(True)
-#         self.evaluation_timer.timeout.connect(self.update_evaluation_result)
-# 
-#         # --- Main layout ---
-#         self.main_layout = QHBoxLayout(self)
-#         self.setLayout(self.main_layout)
-# 
-#         # --- Left Panel (Parameters) ---
-#         self.parameters_panel = QVBoxLayout()
-#         self.parameters_panel.setSpacing(12)
-#         self.main_layout.addLayout(self.parameters_panel, stretch=1)
-# 
-#         # ================= GENERAL ==============
-#         self.general_groupbox = QGroupBox("General")
-#         self.parameters_layout = QVBoxLayout(self.general_groupbox)
-# 
-#         # Resolution
-#         self.resolution_label = QLabel("Resolution: 5")
-#         self.resolution_slider = QSlider(Qt.Horizontal)
-#         self.resolution_slider.setRange(5, 100)
-# 
-#         self.parameters_layout.addWidget(self.resolution_label)
-#         self.parameters_layout.addWidget(self.resolution_slider)
-#         self.parameters_panel.addWidget(self.general_groupbox)
-# 
-#         # ================= ZONE =================
-#         self.zone_groupbox = QGroupBox("Zone")
-#         zone_form = QFormLayout(self.zone_groupbox)
-# 
-#         self.zone_dim_a_spinbox = DoubleSpinBox(1.0, 1000.0)
-#         zone_form.addRow("Width (m):", self.zone_dim_a_spinbox)
-# 
-#         self.zone_dim_b_spinbox = DoubleSpinBox(1.0, 1000.0)
-#         zone_form.addRow("Height (m):", self.zone_dim_b_spinbox)
-# 
-#         self.parameters_panel.addWidget(self.zone_groupbox)
-# 
-#         # ================= SPRINKLERS =================
-#         self.config_groupbox = QGroupBox("Sprinklers")
-#         config_layout = QVBoxLayout(self.config_groupbox)
-# 
-#         # Config selector
-#         config_selector_layout = QHBoxLayout()
-#         config_selector_label = QLabel("Configuration:")
-#         self.config_dropdown = QComboBox()
-#         self.config_dropdown.addItems(["Triangle", "Rectangle"])
-#         config_selector_layout.addWidget(config_selector_label)
-#         config_selector_layout.addWidget(self.config_dropdown, stretch=1)
-#         config_layout.addLayout(config_selector_layout)
-# 
-#         # Width row (preserve explicit label)
-#         self.config_dim_a_layout = QHBoxLayout()
-#         self.config_dim_a_label = QLabel("Width (m):")
-#         self.config_dim_a_label.setFixedWidth(70)
-#         self.config_dim_a_spinbox = DoubleSpinBox(0.5, 20.0)
-#         self.config_dim_a_layout.addWidget(self.config_dim_a_label)
-#         self.config_dim_a_layout.addWidget(self.config_dim_a_spinbox)
-#         config_layout.addLayout(self.config_dim_a_layout)
-# 
-#         # Height row (preserve explicit label)
-#         self.config_dim_b_layout = QHBoxLayout()
-#         self.config_dim_b_label = QLabel("Height (m):")
-#         self.config_dim_b_label.setFixedWidth(70)
-#         self.config_dim_b_spinbox = DoubleSpinBox(0.5, 20.0)
-#         self.config_dim_b_layout.addWidget(self.config_dim_b_label)
-#         self.config_dim_b_layout.addWidget(self.config_dim_b_spinbox)
-#         config_layout.addLayout(self.config_dim_b_layout)
-# 
-#         self.parameters_panel.addWidget(self.config_groupbox)
-# 
-#         # ================= MEASUREMENTS =================
-#         self.measurement_groupbox = QGroupBox("Pr Measurements")
-#         measurement_layout = QVBoxLayout(self.measurement_groupbox)
-#         
-#         csv_layout = QHBoxLayout()
-#         self.csv_path_edit = QLineEdit()
-#         self.csv_path_edit.setPlaceholderText("Select your CSV file...")
-#         self.csv_path_edit.setEnabled(False)
-#         self.csv_browse_button = QPushButton('📝')
-#         self.csv_browse_button.setFixedSize(32, 32)
-#         self.csv_path_edit.setFixedHeight(32)
-#         csv_layout.addWidget(self.csv_path_edit, stretch=1)
-#         csv_layout.addWidget(self.csv_browse_button)
-#         measurement_layout.addLayout(csv_layout)
-#         
-#         measurement_layout.addSpacing(10)
-#         
-#         separator = QFrame()
-#         separator.setFrameShape(QFrame.HLine)
-#         separator.setFrameShadow(QFrame.Sunken)
-#         measurement_layout.addWidget(separator)
-#         
-#         measurement_layout.addSpacing(10)
-# 
-#         form = QFormLayout()
-#         self.Pr_step_spinbox = DoubleSpinBox(0.1, 20.0)
-#         form.addRow("Step (m):", self.Pr_step_spinbox)
-#         measurement_layout.addLayout(form)
-#         
-#         measurement_layout.addSpacing(15)
-# 
-#         # Table
-#         self.table = QTableWidget()
-#         self.table.setAlternatingRowColors(True)
-#         self.table.setHorizontalHeader(
-#             SimpleHeader(self.table)
-#         )
-#         self.table.setVerticalHeader(
-#             RotatedHeader(self.table)
-#         )
-#         measurement_layout.addWidget(self.table)
-# 
-#         # Export button
-#         self.export_csv_button = QPushButton("📤 Export Table")
-#         measurement_layout.addWidget(self.export_csv_button)
-# 
-#         self.parameters_panel.addWidget(self.measurement_groupbox)
-#         
-#         # ================= EXPORT CONFIG =================
-#         self.export_config_button = QPushButton("📑 Export Config")
-#         self.parameters_panel.addWidget(self.export_config_button)
-# 
-#         # Stretch at bottom
-#         self.parameters_panel.addStretch()
-#         
-#         # --- Spacing between panels (invisible gap) ---
-#         self.main_layout.addSpacing(24)  # Adjust value for desired gap
-# 
-#         # --- Right Panel (Plots) ---
-#         self.plot_panel = QVBoxLayout()
-#         self.main_layout.addLayout(self.plot_panel, stretch=2)
-#         
-#         # Zone canvas group
-#         self.zone_groupbox_canvas = QGroupBox("Zone")
-#         self.zone_groupbox_canvas.setAlignment(Qt.AlignHCenter)  # Center title
-#         zone_canvas_layout = QVBoxLayout(self.zone_groupbox_canvas)
-#         self.zone_canvas = Canvas4ImageAs3D(self)
-#         zone_canvas_layout.addWidget(self.zone_canvas)
-#         self.plot_panel.addWidget(self.zone_groupbox_canvas)
-#         
-#         # Homogeneous Plot canvas group
-#         self.homogenous_groupbox_canvas = QGroupBox("Homogeneous Plot")
-#         self.homogenous_groupbox_canvas.setAlignment(Qt.AlignHCenter)  # Center title
-#         homogenous_canvas_layout = QVBoxLayout(self.homogenous_groupbox_canvas)
-#         self.homogenous_plot_canvas = Canvas4ImageAs3D(self)
-#         homogenous_canvas_layout.addWidget(self.homogenous_plot_canvas)
-#         self.plot_panel.addWidget(self.homogenous_groupbox_canvas)
-#         
-#         # --- Spacing between panels (invisible gap) ---
-#         self.main_layout.addSpacing(8)  # Adjust value for desired gap
-#         
-#         # --- Metrics Panel (Rightmost side) ---
-#         self.metrics_panel = QVBoxLayout()
-#         
-#         # Title label
-#         self.metrics_label = QLabel("Metrics")
-#         self.metrics_label.setAlignment(Qt.AlignHCenter)
-#         self.metrics_panel.addWidget(self.metrics_label)
-#         
-#         # Textbox
-#         self.metrics_textbox = QTextEdit()
-#         self.metrics_textbox.setReadOnly(True)
-#         self.metrics_textbox.setFixedWidth(220)
-#         self.metrics_panel.addWidget(self.metrics_textbox)
-#         
-#         # Add to main layout (far right)
-#         self.main_layout.addLayout(self.metrics_panel, stretch=0)
-#         
-#         self.csv_browse_button.setObjectName("csvBrowse")
-#         self.export_csv_button.setObjectName("applyButton")
-#         self.export_config_button.setObjectName("exportConfig")
-#         self.metrics_label.setObjectName("metricsLabel")
-#         
-#         self.setStyleSheet(Themes.LIGHT)
-# =============================================================================
 
     def init_ui(self):
-        # --- Window setup ---
-        self.setWindowTitle("💧 Sprinkler Distribution Evaluator")
+        """
+        Set up the main user interface for the Sprinkler Distribution Evaluator.
+    
+        Responsibilities:
+        1. Configure window title, size, and main layout.
+        2. Initialize evaluation timer for delayed updates.
+        3. Create left parameter panel with groupboxes for general settings, zone dimensions,
+           sprinkler configuration, and measurements.
+        4. Create right panel with plots and canvases.
+        5. Create rightmost metrics panel for displaying evaluation results.
+        6. Apply object names and stylesheets for theming and styling.
+        """
+        self.setWindowTitle('💧 Sprinkler Distribution Evaluator')
         self.resize(900, 600)
         
-        # --- Timer ---
         self.evaluation_timer = QTimer(self)
         self.evaluation_timer.setSingleShot(True)
         self.evaluation_timer.timeout.connect(self.update_evaluation_result)
         
-        # --- Main layout ---
         self.main_layout = QHBoxLayout(self)
         self.setLayout(self.main_layout)
         
-        # --- Left Panel (Parameters) ---
         self.parameters_panel = QVBoxLayout()
         self.parameters_panel.setSpacing(12)
         self.main_layout.addLayout(self.parameters_panel, stretch=1)
         
-        # --- General GroupBox ---
         self.general_groupbox = self._create_general_groupbox()
         self.parameters_panel.addWidget(self.general_groupbox)
         
-        # --- Zone GroupBox ---
         self.zone_groupbox = self._create_zone_groupbox()
         self.parameters_panel.addWidget(self.zone_groupbox)
         
-        # --- Sprinklers GroupBox ---
         self.config_groupbox = self._create_sprinklers_groupbox()
         self.parameters_panel.addWidget(self.config_groupbox)
         
-        # --- Measurements GroupBox ---
         self.measurement_groupbox = self._create_measurements_groupbox()
         self.parameters_panel.addWidget(self.measurement_groupbox)
         
-        # --- Export Config Button ---
-        self.export_config_button = QPushButton("📑 Export Config")
+        self.export_config_button = QPushButton('📑 Export Config')
         self.parameters_panel.addWidget(self.export_config_button)
         
-        # Stretch at bottom
         self.parameters_panel.addStretch()
         
-        # --- Right Panel (Plots) ---
         self.main_layout.addSpacing(24)
         self.plot_panel = QVBoxLayout()
         self.main_layout.addLayout(self.plot_panel, stretch=2)
         
-        self.zone_groupbox_canvas = self._create_canvas_groupbox("Zone")
+        self.zone_groupbox_canvas = self._create_canvas_groupbox('Zone')
         self.plot_panel.addWidget(self.zone_groupbox_canvas)
         
-        self.homogenous_groupbox_canvas = self._create_canvas_groupbox("Homogeneous Plot")
+        self.homogenous_groupbox_canvas = self._create_canvas_groupbox('Homogeneous Plot')
         self.plot_panel.addWidget(self.homogenous_groupbox_canvas)
         
         self.main_layout.addSpacing(8)
         
-        # --- Metrics Panel ---
         self.metrics_panel = QVBoxLayout()
-        self.metrics_label = QLabel("Metrics")
+        self.metrics_label = QLabel('Metrics')
         self.metrics_label.setAlignment(Qt.AlignHCenter)
         self.metrics_panel.addWidget(self.metrics_label)
         
@@ -304,20 +142,28 @@ class View(QWidget):
         
         self.main_layout.addLayout(self.metrics_panel, stretch=0)
         
-        # --- Object Names for Stylesheet ---
-        self.csv_browse_button.setObjectName("csvBrowse")
-        self.export_csv_button.setObjectName("applyButton")
-        self.export_config_button.setObjectName("exportConfig")
-        self.metrics_label.setObjectName("metricsLabel")
-        
-        self.setStyleSheet(Themes.LIGHT)
+        self.csv_browse_button.setObjectName('csv_browse_button')
+        self.export_csv_button.setObjectName('export_csv_button')
+        self.export_config_button.setObjectName('export_config_button')
+        self.metrics_label.setObjectName('metrics_label')
+        self.setStyleSheet(constants.Themes.LIGHT)
 
 
     def _create_general_groupbox(self):
-        groupbox = QGroupBox("General")
+        """
+        Create the 'General' groupbox containing the resolution settings.
+    
+        Components:
+        - QLabel showing the current resolution.
+        - QSlider allowing the user to adjust the resolution from 5 to 100.
+    
+        Returns:
+            QGroupBox: The assembled 'General' groupbox ready to be added to a layout.
+        """
+        groupbox = QGroupBox('General')
         layout = QVBoxLayout(groupbox)
     
-        self.resolution_label = QLabel("Resolution: 5")
+        self.resolution_label = QLabel('Resolution: 5')
         self.resolution_slider = QSlider(Qt.Horizontal)
         self.resolution_slider.setRange(5, 100)
     
@@ -327,91 +173,131 @@ class View(QWidget):
     
     
     def _create_zone_groupbox(self):
-        groupbox = QGroupBox("Zone")
+        """
+        Create the 'Zone' groupbox for defining the dimensions of the irrigation zone.
+    
+        Components:
+        - Two DoubleSpinBoxes for specifying the width and height in meters.
+    
+        Returns:
+            QGroupBox: The assembled 'Zone' groupbox ready to be added to a layout.
+        """
+        groupbox = QGroupBox('Zone')
         form = QFormLayout(groupbox)
     
         self.zone_dim_a_spinbox = DoubleSpinBox(1.0, 1000.0)
         self.zone_dim_b_spinbox = DoubleSpinBox(1.0, 1000.0)
     
-        form.addRow("Width (m):", self.zone_dim_a_spinbox)
-        form.addRow("Height (m):", self.zone_dim_b_spinbox)
+        form.addRow('Width (m):', self.zone_dim_a_spinbox)
+        form.addRow('Height (m):', self.zone_dim_b_spinbox)
         return groupbox
     
     
     def _create_sprinklers_groupbox(self):
-        groupbox = QGroupBox("Sprinklers")
-        layout = QVBoxLayout(groupbox)
+        """
+        Create the 'Sprinklers' groupbox for configuring sprinkler layout.
     
-        # Config selector
+        Components:
+        - Configuration dropdown: 'Triangle' or 'Rectangle'
+        - Width spinbox (Side for triangle)
+        - Height spinbox (optional, only for rectangle)
+    
+        Returns:
+            QGroupBox: The assembled 'Sprinklers' groupbox ready to be added to a layout.
+        """
+        groupbox = QGroupBox('Sprinklers')
+        layout = QVBoxLayout(groupbox)
+        
         selector_layout = QHBoxLayout()
-        selector_layout.addWidget(QLabel("Configuration:"))
+        selector_layout.addWidget(QLabel('Configuration:'))
         self.config_dropdown = QComboBox()
-        self.config_dropdown.addItems(["Triangle", "Rectangle"])
+        self.config_dropdown.addItems(['Triangle', 'Rectangle'])
         selector_layout.addWidget(self.config_dropdown, stretch=1)
         layout.addLayout(selector_layout)
-    
-        # Width row
-        self.config_dim_a_layout = self._create_label_spinbox_row("Width (m):", 0.5, 20.0)
+        
+        self.config_dim_a_layout = self._create_label_spinbox_row('Width (m):', 0.5, 20.0)
         layout.addLayout(self.config_dim_a_layout)
-    
-        # Height row
-        self.config_dim_b_layout = self._create_label_spinbox_row("Height (m):", 0.5, 20.0)
+        
+        self.config_dim_b_layout = self._create_label_spinbox_row('Height (m):', 0.5, 20.0)
         layout.addLayout(self.config_dim_b_layout)
-    
+        
         return groupbox
     
     
     def _create_measurements_groupbox(self):
-        groupbox = QGroupBox("Pr Measurements")
-        layout = QVBoxLayout(groupbox)
+        """
+        Create the 'Pr Measurements' groupbox, including CSV selection, step size,
+        table for Pr values, and an export button.
     
-        # CSV file selection
+        Components:
+        - CSV file selector (disabled QLineEdit + browse button)
+        - Step spinbox for measurement increments
+        - Table with alternating row colors and custom headers
+        - Export table button
+    
+        Returns:
+            QGroupBox: The assembled 'Pr Measurements' groupbox.
+        """
+        groupbox = QGroupBox('Pr Measurements')
+        layout = QVBoxLayout(groupbox)
+        
         csv_layout = QHBoxLayout()
         self.csv_path_edit = QLineEdit()
-        self.csv_path_edit.setPlaceholderText("Select your CSV file...")
+        self.csv_path_edit.setPlaceholderText('Select your CSV file...')
         self.csv_path_edit.setEnabled(False)
-        self.csv_browse_button = QPushButton("📝")
+        self.csv_browse_button = QPushButton('📝')
         self.csv_browse_button.setFixedSize(32, 32)
         self.csv_path_edit.setFixedHeight(32)
         csv_layout.addWidget(self.csv_path_edit, stretch=1)
         csv_layout.addWidget(self.csv_browse_button)
         layout.addLayout(csv_layout)
         layout.addSpacing(10)
-    
-        # Separator
+        
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)
         separator.setFrameShadow(QFrame.Sunken)
         layout.addWidget(separator)
         layout.addSpacing(10)
-    
-        # Step form
+        
         form = QFormLayout()
         self.Pr_step_spinbox = DoubleSpinBox(0.1, 20.0)
-        form.addRow("Step (m):", self.Pr_step_spinbox)
+        form.addRow('Step (m):', self.Pr_step_spinbox)
         layout.addLayout(form)
         layout.addSpacing(15)
-    
-        # Table
+        
         self.table = QTableWidget()
         self.table.setAlternatingRowColors(True)
         self.table.setHorizontalHeader(SimpleHeader(self.table))
         self.table.setVerticalHeader(RotatedHeader(self.table))
         layout.addWidget(self.table)
-    
-        # Export button
-        self.export_csv_button = QPushButton("📤 Export Table")
+        
+        self.export_csv_button = QPushButton('📤 Export Table')
         layout.addWidget(self.export_csv_button)
     
         return groupbox
     
     def _create_canvas_groupbox(self, title: str) -> QGroupBox:
+        """
+        Create a groupbox containing a canvas for plotting.
+    
+        Parameters:
+            title (str): The title of the groupbox, e.g., 'Zone' or 'Homogeneous Plot'.
+    
+        Returns:
+            QGroupBox: The assembled groupbox with a canvas widget inside.
+        
+        Notes:
+            - Centers the groupbox title.
+            - Instantiates a Canvas4ImageAs3D widget and stores a reference
+              to it in the corresponding instance attribute:
+              `self.zone_canvas` or `self.homogenous_plot_canvas`.
+        """
         groupbox = QGroupBox(title)
         groupbox.setAlignment(Qt.AlignHCenter)
         layout = QVBoxLayout(groupbox)
         canvas = Canvas4ImageAs3D(self)
         layout.addWidget(canvas)
-        if title.lower() == "zone":
+        if title.lower() == 'zone':
             self.zone_canvas = canvas
         else:
             self.homogenous_plot_canvas = canvas
@@ -419,6 +305,23 @@ class View(QWidget):
     
     
     def _create_label_spinbox_row(self, label_text: str, min_val: float, max_val: float) -> QHBoxLayout:
+        """
+        Create a horizontal layout containing a QLabel and a DoubleSpinBox.
+    
+        Parameters:
+            label_text (str): The text for the label.
+            min_val (float): Minimum value for the spinbox.
+            max_val (float): Maximum value for the spinbox.
+    
+        Returns:
+            QHBoxLayout: The assembled horizontal layout with label and spinbox.
+    
+        Notes:
+            - Sets a fixed width for the label (70 px) for alignment.
+            - Stores references to the label and spinbox in instance attributes
+              for later access, distinguishing between width and height based on
+              the label text.
+        """
         layout = QHBoxLayout()
         label = QLabel(label_text)
         label.setFixedWidth(70)
@@ -426,7 +329,7 @@ class View(QWidget):
         layout.addWidget(label)
         layout.addWidget(spinbox)
     
-        if "Width" in label_text:
+        if 'width' in label_text.lower():
             self.config_dim_a_label = label
             self.config_dim_a_spinbox = spinbox
         else:
@@ -434,7 +337,12 @@ class View(QWidget):
             self.config_dim_b_spinbox = spinbox
         return layout
 
-    def bind_viewmodel(self):    
+
+    def bind_viewmodel(self):
+        """
+        Bind all UI widgets to the corresponding ViewModel signals and slots.
+        Each group of related widgets is handled in a separate helper method.
+        """
         self._bind_resolution()
         self._bind_zone_dimensions()
         self._bind_config()
@@ -443,30 +351,42 @@ class View(QWidget):
         self._bind_Pr_table()
         self._bind_exports()
         
+        
     def _bind_resolution(self):
+        """
+        Bind resolution slider and label to ViewModel.
+        """
         self.resolution_slider.valueChanged.connect(self.viewmodel.set__resolution)
         self.viewmodel.resolution__changed.connect(
             lambda value: (
                 self.resolution_slider.setValue(value),
                 self.resolution_label.setText(f'Resolution: {value}'),
-                self.evaluation_timer.start(self.EVAL_DELAY)
+                self.evaluation_timer.start(constants.Evaluation.DELAY_MS)
             )
         )
         self.viewmodel.resolution__changed.emit(self.viewmodel.resolution)
     
+    
     def _bind_zone_dimensions(self):
+        """
+        Bind zone dimension spinboxes to ViewModel.
+        """
         self.zone_dim_a_spinbox.valueChanged.connect(self.on_zone_dims_changed)
         self.zone_dim_b_spinbox.valueChanged.connect(self.on_zone_dims_changed)
         self.viewmodel.zone_dim_meters__changed.connect(
             lambda value: (
                 self.zone_dim_a_spinbox.setValue(value[0]),
                 self.zone_dim_b_spinbox.setValue(value[1]),
-                self.evaluation_timer.start(self.EVAL_DELAY)
+                self.evaluation_timer.start(constants.Evaluation.DELAY_MS)
             )
         )
         self.viewmodel.zone_dim_meters__changed.emit(self.viewmodel.zone_dim_meters)
     
+    
     def _bind_config(self):
+        """
+        Bind sprinkler configuration dropdown and spinboxes.
+        """
         self.config_dropdown.currentIndexChanged.connect(self.on_config_changed)
         self.config_dim_a_spinbox.valueChanged.connect(self.on_config_dims_changed)
         self.config_dim_b_spinbox.valueChanged.connect(self.on_config_dims_changed)
@@ -474,38 +394,59 @@ class View(QWidget):
         self.viewmodel.config_meters__changed.emit(self.viewmodel.config_meters)
         self.on_config_changed()
     
+    
     def _bind_csv_path(self):
+        """
+        Bind CSV file path input and browse button.
+        """
         self.csv_path_edit.textChanged.connect(self.viewmodel.set__csv_filepath)
         self.viewmodel.csv_filepath__changed.connect(
             lambda value: (
                 self.csv_path_edit.setText(value),
-                self.evaluation_timer.start(self.EVAL_DELAY),
+                self.evaluation_timer.start(constants.Evaluation.DELAY_MS),
             )
         )
         self.viewmodel.csv_filepath__changed.emit(self.viewmodel.csv_filepath)
         self.csv_browse_button.clicked.connect(self.select_csv_file)
     
+    
     def _bind_Pr_step(self):
+        """
+        Bind Pr step spinbox.
+        """
         self.Pr_step_spinbox.valueChanged.connect(self.viewmodel.set__Pr_step)
         self.viewmodel.Pr_step__changed.connect(
             lambda value: (
                 self.Pr_step_spinbox.setValue(value),
                 self.update_header_labels(),
-                self.evaluation_timer.start(self.EVAL_DELAY)
+                self.evaluation_timer.start(constants.Evaluation.DELAY_MS)
             )
         )
         self.viewmodel.Pr_step__changed.emit(self.viewmodel.Pr_step)
     
+    
     def _bind_Pr_table(self):
+        """
+        Bind table updates to the ViewModel.
+        """
         self.table.itemChanged.connect(self.update_Pr_grid)
         self.viewmodel.Pr_grid__changed.connect(self.update_table)
         self.update_table(self.viewmodel.Pr_grid)
         
+        
     def _bind_exports(self):
+        """
+        Bind export buttons to their functions.
+        """
         self.export_csv_button.clicked.connect(self.on_export_csv_button_clicked)
         self.export_config_button.clicked.connect(self.export_config)
         
+        
     def on_param_changed__config_meters(self):
+        """
+        Update the sprinkler configuration UI based on the ViewModel's config_meters.
+        Handles both Triangle (single value) and Rectangle (two values) configurations.
+        """
         is_triangle = len(self.viewmodel.config_meters) < 2
         a, b = self.viewmodel.config_meters[0], 0.0
         if not is_triangle:
@@ -515,29 +456,59 @@ class View(QWidget):
         self.config_dim_a_spinbox.setValue(a)
         self.config_dim_b_spinbox.setValue(b)
         
+        
     def on_zone_dims_changed(self):
+        """
+        Update the ViewModel with the current zone dimensions from the spinboxes
+        and trigger a delayed evaluation.
+        """
         w = self.zone_dim_a_spinbox.value()
         h = self.zone_dim_b_spinbox.value()
         value = (w, h)
         self.viewmodel.set__zone_dim_meters(value)
-        self.evaluation_timer.start(self.EVAL_DELAY)
+        self.evaluation_timer.start(constants.Evaluation.DELAY_MS)
+    
     
     def on_config_changed(self):
+        """
+        Adjust the UI and ViewModel based on the selected sprinkler configuration.
+        If 'Triangle' is selected, hide the second dimension and update the first label.
+        Otherwise, show both width and height inputs.
+        """
         is_triangle = self.config_dropdown.currentIndex() == 0
         self.config_dim_a_label.setText('Side (m):' if is_triangle else 'Width (m):')
         self.config_dim_b_label.setVisible(not is_triangle)
         self.config_dim_b_spinbox.setVisible(not is_triangle)
         self.on_config_dims_changed()
     
+    
     def on_config_dims_changed(self):
+        """
+        Update the ViewModel with the current sprinkler configuration dimensions.
+        - For triangle configuration, only the first dimension (side) is used.
+        - For rectangle configuration, both width and height are used.
+        """
         a = self.config_dim_a_spinbox.value()
         b = self.config_dim_b_spinbox.value()
         value = (a, b) if self.config_dim_b_spinbox.isVisible() else (a,)
         self.viewmodel.set__config_meters(value)
-        self.evaluation_timer.start(self.EVAL_DELAY)
+        self.evaluation_timer.start(constants.Evaluation.DELAY_MS)
+
 
     @staticmethod
     def format_table_item(value:float, max_value:float):
+        """
+        Create a QTableWidgetItem with a background color based on the value
+        relative to max_value. Values are normalized and mapped to a greenish
+        hue, with text color adjusted for contrast.
+    
+        Parameters:
+            value (float): The numeric value for the table cell.
+            max_value (float): Maximum value in the table for normalization.
+    
+        Returns:
+            QTableWidgetItem: Formatted table cell item.
+        """
         item = QTableWidgetItem(str(float(value)))
         normalized_value = value / (max_value + 1e-3)
         color = QColor.fromHsv(100, 255, int(255 * normalized_value))
@@ -547,7 +518,14 @@ class View(QWidget):
         item.setTextAlignment(Qt.AlignCenter)
         return item
         
+    
     def update_table(self, arr):
+        """
+        Update the QTableWidget with new Pr values and refresh cell formatting.
+    
+        Parameters:
+            arr (np.ndarray): 2D array containing the Pr values to display.
+        """
         if arr is None:
             return
         self.table.blockSignals(True)
@@ -565,9 +543,15 @@ class View(QWidget):
                     item = self.format_table_item(arr[i, j], Pr_max)                        
                 self.table.setItem(i, j, item)
         
-        display_rows, display_cols = map(lambda x: max(self.MIN_DISPLAY_LIMIT, min(x, self.MAX_DISPLAY_LIMIT)), [rows, cols])
-        total_height = display_rows * self.CELL_SIZE + 21
-        total_width  = display_cols * self.CELL_SIZE + 35
+        display_rows, display_cols = map(
+            lambda x: max(
+                constants.Cells.MIN_DISPLAYED,
+                min(x, constants.Cells.MAX_DISPLAYED)
+            ), 
+            [rows, cols]
+        )
+        total_height = display_rows * constants.Cells.SIZE + 21
+        total_width  = display_cols * constants.Cells.SIZE + 35
         self.table.setFixedSize(total_width, total_height)
         
         parameter_panel_width = total_width + 24
@@ -578,26 +562,63 @@ class View(QWidget):
         
         self.table.blockSignals(False)
 
+
     def update_header_labels(self):
+        """
+        Update the vertical and horizontal headers of the Pr table
+        based on the current step size (Pr_step) and number of rows.
+        """
         n, step = self.table.rowCount(), self.viewmodel.Pr_step
         header_labels = np.arange(0.0, n * step, step).round(1).astype('str')
         self.table.setVerticalHeaderLabels(header_labels)
         self.table.setHorizontalHeaderLabels(header_labels)
 
+
     def on_export_csv_button_clicked(self):
+        """
+        Export the current Pr table to a CSV file using the path
+        specified in the ViewModel.
+        """
         write_csv(self.viewmodel.csv_filepath, self.viewmodel.Pr_table)
         
+        
     def select_csv_file(self):
+        """
+        Open a file dialog for the user to select a CSV file.
+        If a file is selected, update the CSV path QLineEdit.
+        """
         filepath, _ = QFileDialog.getOpenFileName(
             self,
-            "Select CSV File",
-            "",
-            "CSV Files (*.csv);;All Files (*)"
+            'Select CSV File',
+            '',
+            'CSV Files (*.csv);;All Files (*)'
         )
         if filepath:
             self.csv_path_edit.setText(filepath)
         
+        
+    def keyPressEvent(self, event):
+        """
+        Handles key presses to allow setting selected table items to zero
+        when the '0' key is pressed.
+        """
+        self.zero_input_flag = event.text() == '0'
+        if self.zero_input_flag:
+            selected_items = self.table.selectedItems()
+            self.table.blockSignals(True)
+            for item in selected_items:
+                item.setText('0.0')
+            self.table.blockSignals(False)
+            self.update_Pr_grid()
+            self.zero_input_flag = False
+            
+        
     def update_Pr_grid(self):
+        """
+        Reads values from the QTableWidget, constructs the Pr grid,
+        removes fully zero rows and columns, ensures a minimum grid size,
+        updates the ViewModel, refreshes the table, and triggers evaluation.
+        """
         rows = self.table.rowCount()
         cols = self.table.columnCount()
         arr = np.empty((rows, cols))
@@ -630,20 +651,14 @@ class View(QWidget):
             arr = np.zeros((2,2))
         self.viewmodel.set__Pr_grid(arr)
         self.update_table(arr)
-        self.evaluation_timer.start(self.EVAL_DELAY)
+        self.evaluation_timer.start(constants.Evaluation.DELAY_MS)
         
-    def keyPressEvent(self, event):
-        self.zero_input_flag = event.text() == '0'
-        if self.zero_input_flag:
-            selected_items = self.table.selectedItems()
-            self.table.blockSignals(True)
-            for item in selected_items:
-                item.setText('0.0')
-            self.table.blockSignals(False)
-            self.update_Pr_grid()
-            self.zero_input_flag = False
-            
+        
     def update_evaluation_result(self):
+        """
+        Evaluates the current sprinkler configuration and updates
+        the ViewModel, metrics display, and plots.
+        """
         result = evaluate(
             self.viewmodel.resolution, 
             self.viewmodel.zone_dim_meters,
@@ -654,10 +669,10 @@ class View(QWidget):
     
         # --- Update metrics display instead of printing ---
         metrics_text = (
-            "💧 Uniformaity\n"
-            "----------------------\n"
-            f"Christiansen Uniformity (CU): {result.metrics.CU:.2f} %\n"
-            f"Distribution Uniformity (DU): {result.metrics.DU:.2f} %\n"
+            '💧 Uniformaity\n'
+            '----------------------\n'
+            f'Christiansen Uniformity (CU): {result.metrics.CU:.2f} %\n'
+            f'Distribution Uniformity (DU): {result.metrics.DU:.2f} %\n'
         )
         self.metrics_textbox.setPlainText(metrics_text)
     
@@ -665,7 +680,12 @@ class View(QWidget):
         self.zone_canvas.plot(result.zone, self.viewmodel.resolution, (45, 45))
         self.homogenous_plot_canvas.plot(result.homogenous_plot, self.viewmodel.resolution, (45, 45))
 
+
     def export_config(self):
+        """
+        Exports the current configuration from the ViewModel
+        into the INI parser and writes it to disk.
+        """
         serialize_floats = lambda floats: ', '.join(map(str, floats))
         self.config_parser.set('Display', 'RESOLUTION', str(self.viewmodel.resolution))
         self.config_parser.set('Sprinklers', 'ZONE_DIM_METERS', serialize_floats(self.viewmodel.zone_dim_meters))

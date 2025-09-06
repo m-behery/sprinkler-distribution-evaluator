@@ -11,6 +11,17 @@ import pandas as pd
 from argparse import Namespace
 
 def Pr_table_to_grid(Pr_table):
+    """
+    Convert a Pr measurement table into a 2D grid and extract the step size.
+
+    Parameters:
+        Pr_table: 2D array-like, expected shape (N, 3), where columns are:
+                  [x_position, y_position, Pr_value]
+
+    Returns:
+        Pr_grid (np.ndarray): 2D array of Pr values arranged as a grid
+        Pr_step (float): Step size between adjacent positions along one axis
+    """
     if Pr_table is None:
         return np.zeros((2,2)), 1
     Pr_table = pd.DataFrame(Pr_table)
@@ -20,6 +31,16 @@ def Pr_table_to_grid(Pr_table):
     return Pr_grid, Pr_step
 
 def Pr_grid_to_table(Pr_grid, Pr_step):
+    """
+    Convert a 2D Pr grid into a flat table suitable for CSV export or other uses.
+
+    Parameters:
+        Pr_grid (np.ndarray): 2D array of Pr values
+        Pr_step (float): Spacing between grid points along each axis
+
+    Returns:
+        Pr_table (np.ndarray): Flattened table with columns [x, y, Pr_value]
+    """
     index, columns = map(
         lambda axis: Pr_step * np.arange(Pr_grid.shape[axis]),
         (0,1)
@@ -32,7 +53,17 @@ def Pr_grid_to_table(Pr_grid, Pr_step):
     return Pr_table
 
 def Pr_table_to_quadrant(Pr_table, resolution):
-    
+    """
+    Convert a Pr table into a full quadrant 2D array, mapping Pr values
+    to pixel positions scaled by the resolution.
+
+    Parameters:
+        Pr_table (np.ndarray): Array with shape (N, 3), columns [x, y, Pr]
+        resolution (float): Scaling factor to convert coordinates to pixel indices
+
+    Returns:
+        Pr_quadrant (np.ndarray): 2D array representing the quadrant with Pr values
+    """
     if Pr_table is None:
         return np.zeros((2,2))
     
@@ -59,6 +90,17 @@ def Pr_table_to_quadrant(Pr_table, resolution):
     return Pr_quadrant
 
 def generate_sliding_window(configuration_pixels, is_triangle):
+    """
+    Generate a boolean sliding window array representing sprinkler positions
+    based on the configuration shape (triangle or rectangle).
+
+    Parameters:
+        configuration_pixels (np.ndarray): Array of pixel dimensions [height, width] or [side_length] for triangle.
+        is_triangle (bool): Flag indicating if the configuration is triangular.
+
+    Returns:
+        window (np.ndarray): Boolean array where True indicates a sprinkler position.
+    """
     if is_triangle:
         triangle_s = configuration_pixels[0]
         triangle_h = int(0.866 * triangle_s)
@@ -79,6 +121,18 @@ def generate_sliding_window(configuration_pixels, is_triangle):
     return window
 
 def generate_sprinklers_mask(zone_pixels, sliding_window, is_triangle):
+    """
+    Generate a boolean mask for sprinkler positions across a zone.
+
+    Parameters:
+        zone_pixels (tuple[int, int]): Size of the zone in pixels (height, width).
+        sliding_window (np.ndarray): Boolean array representing a single sprinkler configuration.
+        is_triangle (bool): Flag indicating if the configuration is triangular.
+
+    Returns:
+        sprinklers_mask (np.ndarray): Boolean mask of the same size as the zone, 
+                                      where True indicates sprinkler positions.
+    """
     sprinklers_mask = np.zeros(zone_pixels, dtype=bool)
     zone_h, zone_w = sprinklers_mask.shape
     step_y, step_x = sliding_window.shape
@@ -103,6 +157,15 @@ def generate_sprinklers_mask(zone_pixels, sliding_window, is_triangle):
     return sprinklers_mask
 
 def Pr_quadrant_to_plot(Pr_quadrant):
+    """
+    Mirror a quadrant of Pr values to create a full symmetric plot.
+
+    Parameters:
+        Pr_quadrant (np.ndarray): 2D array representing a single quadrant (top-left).
+
+    Returns:
+        Pr_plot (np.ndarray): 2D array of doubled size, mirrored across both axes.
+    """
     Pr_plot = np.zeros(np.array(Pr_quadrant.shape) * 2)
     step_y, step_x = Pr_quadrant.shape
     Pr_plot[:step_y, :step_x] = Pr_quadrant[::-1, ::-1]
@@ -112,6 +175,17 @@ def Pr_quadrant_to_plot(Pr_quadrant):
     return Pr_plot
 
 def Pr_plot_to_zone(Pr_plot, sprinklers_mask):
+    """
+    Map a full Pr plot to the sprinkler zone by adding contributions
+    from each sprinkler location.
+
+    Parameters:
+        Pr_plot (np.ndarray): 2D array of precipitation distribution around a sprinkler.
+        sprinklers_mask (np.ndarray): Boolean 2D array indicating sprinkler positions.
+
+    Returns:
+        Pr_zone (np.ndarray): 2D array representing the total Pr over the zone.
+    """
     step_y, step_x = np.array(Pr_plot.shape) // 2
     yx_sprinklers = np.stack(np.where(sprinklers_mask), axis=1)
     Pr_zone       = np.zeros(sprinklers_mask.shape)
@@ -136,6 +210,20 @@ def Pr_plot_to_zone(Pr_plot, sprinklers_mask):
     return Pr_zone
 
 def Pr_zone_to_homogenous_plot(Pr_zone, sliding_window, is_triangle):
+    """
+    Extract a representative "homogeneous plot" from the irrigation zone.
+
+    This function selects a portion of the full precipitation zone (Pr_zone)
+    that corresponds to a single repeatable unit of the sprinkler configuration.
+
+    Parameters:
+        Pr_zone (np.ndarray): 2D array representing total precipitation over the zone.
+        sliding_window (np.ndarray): 2D boolean array representing sprinkler placement pattern.
+        is_triangle (bool): Whether the sprinkler configuration is triangular or rectangular.
+
+    Returns:
+        homogenous_plot (np.ndarray): Subsection of Pr_zone representing one repeatable unit.
+    """
     window_h, window_w = sliding_window.shape
     if is_triangle:
         halfwindow_h = window_h // 2
@@ -146,6 +234,20 @@ def Pr_zone_to_homogenous_plot(Pr_zone, sliding_window, is_triangle):
     return homogenous_plot
     
 def compute_DU(Pr_homogenous_plot):
+    """
+    Compute the Distribution Uniformity (DU) of a precipitation plot.
+
+    DU is the ratio of the average of the lowest-quartile (LQ) precipitation
+    values to the overall mean, expressed as a percentage.
+
+    Parameters:
+        Pr_homogenous_plot (np.ndarray): 2D array representing precipitation
+                                         over a homogeneous plot of the sprinkler layout.
+
+    Returns:
+        DU (float): Distribution uniformity in percentage. Returns np.nan
+                    if no lowest-quartile values exist.
+    """
     LQ_mask = Pr_homogenous_plot < np.quantile(Pr_homogenous_plot, 0.25)
     if not LQ_mask.any():
         return np.nan
@@ -157,6 +259,20 @@ def compute_DU(Pr_homogenous_plot):
     return DU
     
 def compute_CU(Pr_homogenous_plot):
+    """
+    Compute the Christiansen Uniformity (CU) of a precipitation plot.
+
+    CU measures the uniformity of water distribution across the plot. 
+    It ranges from 0% (completely non-uniform) to 100% (perfectly uniform).
+
+    Parameters:
+        Pr_homogenous_plot (np.ndarray): 2D array representing precipitation
+                                         over a homogeneous plot of the sprinkler layout.
+
+    Returns:
+        CU (float): Christiansen Uniformity percentage. Returns np.nan if
+                    CU is negative due to numerical errors.
+    """
     mean_height = np.mean(Pr_homogenous_plot)
     eps = np.finfo(mean_height.dtype).eps
     CU = round(100 * (1 - np.sum(np.abs(Pr_homogenous_plot - mean_height)) / (Pr_homogenous_plot.size * mean_height + eps)), 2)
@@ -166,7 +282,23 @@ def compute_CU(Pr_homogenous_plot):
     return CU
 
 def evaluate(resolution:int, zone_meters:tuple, configuration_meters:tuple, Pr_table:np.ndarray):
+    """
+    Evaluate sprinkler distribution uniformity given the layout and measurements.
 
+    Parameters:
+        resolution (int): Scaling factor, pixels per meter.
+        zone_meters (tuple[float, float]): Physical dimensions of the irrigation zone (width, height) in meters.
+        configuration_meters (tuple[float] or tuple[float, float]): Sprinkler configuration dimensions.
+            - Single value → triangular layout (equilateral triangle)
+            - Two values → rectangular layout
+        Pr_table (np.ndarray): CSV table of precipitation measurements with positions and values.
+
+    Returns:
+        Namespace: Contains
+            - zone (np.ndarray): Precipitation map over the zone.
+            - homogenous_plot (np.ndarray): A quadrant slice representing a homogeneous plot.
+            - metrics (Namespace): Contains Christiansen Uniformity (CU) and Distribution Uniformity (DU)
+    """
     assert type(resolution) is int, \
            '`resolution` should be an integer.'
     

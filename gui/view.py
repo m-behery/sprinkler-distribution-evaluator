@@ -587,13 +587,21 @@ class View(QWidget):
         Open a file dialog for the user to select a CSV file.
         If a file is selected, update the CSV path QLineEdit.
         """
-        filepath, _ = QFileDialog.getOpenFileName(
-            self,
-            'Select CSV File',
-            '',
-            'CSV Files (*.csv);;All Files (*)'
-        )
-        if filepath:
+        old_filepath = self.csv_path_edit.text()
+        dialog = QFileDialog(self)
+        dialog.setWindowTitle('Select CSV File')
+        dialog.setNameFilter('CSV Files (*.csv);;All Files (*)')
+        dialog.setOption(QFileDialog.DontUseNativeDialog, True)  # Force Qt dialog
+        for button in dialog.findChildren(QPushButton):
+            if 'Open' in button.text():
+                button.setText('Select')
+            else:
+                button.setText('Cancel')
+            button.setStyleSheet('color: black')
+        if dialog.exec() == QFileDialog.Accepted:
+            filepath = dialog.selectedFiles()[0]
+            if filepath == old_filepath:
+                self.csv_path_edit.setText('')
             self.csv_path_edit.setText(filepath)
         
         

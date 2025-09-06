@@ -1,5 +1,12 @@
 # 💧 Sprinkler Distribution Evaluator
 
+This repository (**sprinkler-distribution-evaluator**) contains the source code for **Sprinkler Distribution Evaluator**,  
+a Python tool to simulate and visualize sprinkler coverage.
+
+---
+
+## Introduction
+
 A PyQt5-based tool to **visualize, evaluate, and analyze sprinkler distribution** over irrigation zones. It provides 3D surface plots, uniformity metrics, and CSV export for detailed evaluation.
 
 ---
@@ -119,7 +126,16 @@ root/
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](https://github.com/m-behery/sprinkler-distribution-evaluator/blob/main/LICENSE) file for details.
+This project is free software, licensed under the terms of the **GNU General Public License v3.0 (GPLv3)**.  
+You may redistribute and/or modify it under those terms.  
+See the [LICENSE](https://github.com/m-behery/sprinkler-distribution-evaluator/blob/main/LICENSE) file for details.
+
+---
+
+## Why the GPLv3 License?
+
+I chose the GPLv3 license because it ensures that this project remains **free and open-source software**.  
+Any modifications or derived works must also remain open, preserving user freedom and encouraging collaboration for the benefit of the community.
 
 ---
 

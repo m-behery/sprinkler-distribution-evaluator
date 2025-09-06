@@ -24,27 +24,35 @@ class Canvas4ImageAs3D(FigureCanvasQTAgg):
         self.ax = fig.add_subplot(111, projection='3d')
         self.setFocusPolicy(Qt.StrongFocus)
         self.setMinimumWidth(minimum_width)
-    
+        
     def plot(self, image, resolution, deg_angles):
         """
-        Render a 3D surface plot from a 2D image array.
-
+        Render a 3D surface plot from a 2D image array with proper axis scaling.
+    
         Parameters:
             image: 2D numpy array representing Pr values
             resolution: spatial resolution in meters per pixel
             deg_angles: tuple (elev, azim) for initial viewing angles in degrees
         """
         h, w = image.shape
-        x_range, y_range = np.arange(w) / resolution, np.arange(h) / resolution
+        x_range = np.arange(w) / resolution
+        y_range = np.arange(h) / resolution
         x_map, y_map = np.meshgrid(x_range, y_range)
+    
         self.ax.clear()
         self.ax.plot_surface(x_map, y_map, image, cmap='viridis', edgecolor='none')
         self.ax.view_init(*deg_angles)
-        self.ax.set_xlabel('x (m)')
-        self.ax.set_ylabel('y (m)')
-        self.ax.set_zlabel('Pr (mm/hr)')
-        self.draw()
+        self.ax.set_xlabel('x (m)', labelpad=10)
+        self.ax.set_ylabel('y (m)', labelpad=10)
+        self.ax.set_zlabel('Pr (mm/hr)', labelpad=10)
         
+        dx = x_range.max() - x_range.min()
+        dy = y_range.max() - y_range.min()
+        dz = 0.5 * (dx + dy)
+        self.ax.set_box_aspect([dx, dy, dz])
+    
+        self.draw()
+
     def mousePressEvent(self, event):       pass
     def mouseReleaseEvent(self, event):     pass
     def mouseDoubleClickEvent(self, event): pass

@@ -141,5 +141,8 @@ Any modifications or derived works must also remain open, preserving user freedo
 
 ## Contact
 
-Developed by **Mohamed Behery**
-For questions or contributions: \[[mohamed.i.behery@proton.me](mailto:mohamed.i.behery@proton.me)]
+For questions, suggestions, or collaboration, please reach out:
+
+- **Author**: Mohamed Behery  
+- **Email**: [mohamed.i.behery@proton.me](mailto:mohamed.i.behery@proton.me)  
+- **GitHub**: [m-behery](https://github.com/m-behery)

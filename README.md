@@ -7,7 +7,7 @@ a Python tool to simulate and visualize sprinkler coverage.
 
 ## Introduction
 
-A PyQt5-based tool to **visualize, evaluate, and analyze sprinkler distribution** over irrigation zones. It provides 3D surface plots, uniformity metrics, and CSV export for detailed evaluation.
+A PyQt5-based tool to **visualize, evaluate, and analyze sprinkler distribution** over irrigation zones. It provides 3D surface plots and uniformity metrics for evaluation.
 
 ---
 

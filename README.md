@@ -135,7 +135,7 @@ See the [LICENSE](https://github.com/m-behery/sprinkler-distribution-evaluator/b
 ## Why the GPLv3 License?
 
 I chose the GPLv3 license because it ensures that this project remains **free and open-source software**.  
-Any modifications or derived works must also remain open, preserving user freedom and encouraging collaboration for the benefit of the community.You can add a **Special Thanks** section right after your main content, like this:
+Any modifications or derived works must also remain open, preserving user freedom and encouraging collaboration for the benefit of the community.
 
 ---
 

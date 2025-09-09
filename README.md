@@ -149,9 +149,9 @@ I would like to extend my sincere gratitude to **Doaa Mamdouh Sayyed**, a domain
 
 For questions, suggestions, or collaboration, please reach out:
 
-- **Author**: Mohamed Behery  
+**Author**: Mohamed Behery  
 - **Email**: [mohamed.i.behery@proton.me](mailto:mohamed.i.behery@proton.me)  
 - **GitHub**: [m-behery](https://github.com/m-behery)
 
-- **Domain Expert & Project Sponsor**: Doaa Mamdouh Sayyed
+**Domain Expert & Project Sponsor**: Doaa Mamdouh Sayyed
 - **Email**: [doaamamdouh9@hotmail.com](mailto:doaamamdouh9@hotmail.com)  

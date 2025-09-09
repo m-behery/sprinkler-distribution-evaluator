@@ -135,7 +135,13 @@ See the [LICENSE](https://github.com/m-behery/sprinkler-distribution-evaluator/b
 ## Why the GPLv3 License?
 
 I chose the GPLv3 license because it ensures that this project remains **free and open-source software**.  
-Any modifications or derived works must also remain open, preserving user freedom and encouraging collaboration for the benefit of the community.
+Any modifications or derived works must also remain open, preserving user freedom and encouraging collaboration for the benefit of the community.You can add a **Special Thanks** section right after your main content, like this:
+
+---
+
+## Special Thanks
+
+I would like to extend my sincere gratitude to **Doaa Mamdouh Sayyed**, a domain knowledge expert, for financially sponsoring this project in addition to providing **the business knowledge and real-world use cases** that made the development of this software possible. Her guidance and further encouragement to make this project open-source were instrumental in shaping the project.
 
 ---
 
@@ -146,3 +152,6 @@ For questions, suggestions, or collaboration, please reach out:
 - **Author**: Mohamed Behery  
 - **Email**: [mohamed.i.behery@proton.me](mailto:mohamed.i.behery@proton.me)  
 - **GitHub**: [m-behery](https://github.com/m-behery)
+
+- **Domain Expert & Project Sponsor**: Doaa Mamdouh Sayyed
+- **Email**: [doaamamdouh9@hotmail.com](mailto:doaamamdouh9@hotmail.com)  

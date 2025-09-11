@@ -21,7 +21,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QComboBox, QTableWidgetItem,
     QPushButton, QSlider, QStyledItemDelegate, QHBoxLayout, QGroupBox,
-    QFormLayout, QFrame, QTextEdit, QLineEdit, QFileDialog, 
+    QFormLayout, QFrame, QTextEdit, QLineEdit, QFileDialog, QTabWidget, 
 )
 from PyQt5.QtGui import QColor, QBrush, QDoubleValidator
 from PyQt5.QtCore import Qt, QTimer
@@ -85,11 +85,12 @@ class View(QWidget):
         
         self.init_ui()
         self.bind_viewmodel()
+        
 
     def init_ui(self):
         """
         Set up the main user interface for the Sprinkler Distribution Evaluator.
-    
+        
         Responsibilities:
         1. Configure window title, size, and main layout.
         2. Initialize evaluation timer for delayed updates.
@@ -100,7 +101,6 @@ class View(QWidget):
         6. Apply object names and stylesheets for theming and styling.
         """
         self.setWindowTitle('💧 Sprinkler Distribution Evaluator')
-        self.resize(900, 600)
         
         self.evaluation_timer = QTimer(self)
         self.evaluation_timer.setSingleShot(True)
@@ -399,12 +399,57 @@ class View(QWidget):
         """
         Bind sprinkler configuration dropdown and spinboxes.
         """
+        self.viewmodel.config_meters__changed.connect(self.on_param_changed__config_meters)
+        self.viewmodel.config_meters__changed.emit(self.viewmodel.config_meters)
+        
         self.config_dropdown.currentIndexChanged.connect(self.on_config_changed)
         self.config_dim_a_spinbox.valueChanged.connect(self.on_config_dims_changed)
         self.config_dim_b_spinbox.valueChanged.connect(self.on_config_dims_changed)
-        self.viewmodel.config_meters__changed.connect(self.on_param_changed__config_meters)
-        self.viewmodel.config_meters__changed.emit(self.viewmodel.config_meters)
-        self.on_config_changed()
+        
+        
+    def on_param_changed__config_meters(self):
+        """
+        Update the sprinkler configuration UI based on the ViewModel's config_meters.
+        Handles both Triangle (single value) and Rectangle (two values) configurations.
+        """
+        self.config_dropdown.setCurrentIndex(0 if self.viewmodel.is_triangle else 1)
+    
+        self.config_dim_b_label.setVisible(not self.viewmodel.is_triangle)
+        self.config_dim_b_spinbox.setVisible(not self.viewmodel.is_triangle)
+        
+        try:
+            a, b = self.viewmodel.config_meters
+            self.config_dim_b_spinbox.setValue(b)
+        except ValueError:
+            a = self.viewmodel.config_meters[0]
+        finally:
+            self.config_dim_a_spinbox.setValue(a)
+    
+    
+    def on_config_changed(self):
+        """
+        Adjust the UI and ViewModel based on the selected sprinkler configuration.
+        If 'Triangle' is selected, hide the second dimension and update the first label.
+        Otherwise, show both width and height inputs.
+        """
+        is_triangle = self.config_dropdown.currentIndex() == 0
+        self.config_dim_a_label.setText('Side (m):' if is_triangle else 'Width (m):')
+        self.config_dim_b_label.setVisible(not is_triangle)
+        self.config_dim_b_spinbox.setVisible(not is_triangle)
+        self.on_config_dims_changed()
+    
+    
+    def on_config_dims_changed(self):
+        """
+        Update the ViewModel with the current sprinkler configuration dimensions.
+        - For triangle configuration, only the first dimension (side) is used.
+        - For rectangle configuration, both width and height are used.
+        """
+        a = self.config_dim_a_spinbox.value()
+        b = self.config_dim_b_spinbox.value()
+        value = (a, b) if self.config_dim_b_spinbox.isVisible() else (a,)
+        self.viewmodel.set__config_meters(value)
+        self.evaluation_timer.start(constants.Evaluation.DELAY_MS)
     
     
     def _bind_csv_path(self):
@@ -454,21 +499,6 @@ class View(QWidget):
         self.export_config_button.clicked.connect(self.export_config)
         
         
-    def on_param_changed__config_meters(self):
-        """
-        Update the sprinkler configuration UI based on the ViewModel's config_meters.
-        Handles both Triangle (single value) and Rectangle (two values) configurations.
-        """
-        is_triangle = len(self.viewmodel.config_meters) < 2
-        a, b = self.viewmodel.config_meters[0], 0.0
-        if not is_triangle:
-            b = self.viewmodel.config_meters[1]
-            
-        self.config_dropdown.setCurrentIndex(0 if is_triangle else 1)
-        self.config_dim_a_spinbox.setValue(a)
-        self.config_dim_b_spinbox.setValue(b)
-        
-        
     def on_zone_dims_changed(self):
         """
         Update the ViewModel with the current zone dimensions from the spinboxes
@@ -478,32 +508,6 @@ class View(QWidget):
         h = self.zone_dim_b_spinbox.value()
         value = (w, h)
         self.viewmodel.set__zone_dim_meters(value)
-        self.evaluation_timer.start(constants.Evaluation.DELAY_MS)
-    
-    
-    def on_config_changed(self):
-        """
-        Adjust the UI and ViewModel based on the selected sprinkler configuration.
-        If 'Triangle' is selected, hide the second dimension and update the first label.
-        Otherwise, show both width and height inputs.
-        """
-        is_triangle = self.config_dropdown.currentIndex() == 0
-        self.config_dim_a_label.setText('Side (m):' if is_triangle else 'Width (m):')
-        self.config_dim_b_label.setVisible(not is_triangle)
-        self.config_dim_b_spinbox.setVisible(not is_triangle)
-        self.on_config_dims_changed()
-    
-    
-    def on_config_dims_changed(self):
-        """
-        Update the ViewModel with the current sprinkler configuration dimensions.
-        - For triangle configuration, only the first dimension (side) is used.
-        - For rectangle configuration, both width and height are used.
-        """
-        a = self.config_dim_a_spinbox.value()
-        b = self.config_dim_b_spinbox.value()
-        value = (a, b) if self.config_dim_b_spinbox.isVisible() else (a,)
-        self.viewmodel.set__config_meters(value)
         self.evaluation_timer.start(constants.Evaluation.DELAY_MS)
 
 

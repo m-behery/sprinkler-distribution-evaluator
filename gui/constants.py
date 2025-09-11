@@ -38,7 +38,7 @@ class Cells(StaticClass):
     Cell/table display constants.
     """
     SIZE: Final          = 40
-    MAX_DISPLAYED: Final = 10
+    MAX_DISPLAYED: Final = 6
     MIN_DISPLAYED: Final = 3
 
 class Themes(StaticClass):

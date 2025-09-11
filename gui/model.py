@@ -26,8 +26,11 @@ class Model:
     
     def __init__(self, resolution, zone_dim_meters, config_meters, csv_filepath):
         
+        assert 0 < len(config_meters) <= 2, 'config_meters can either have 1 (i.e. triangular) or 2 (i.e. rectangluar) dimensions.'
+        
         self._resolution = resolution
         self._zone_dim_meters = zone_dim_meters
+        self._is_triangle = len(config_meters) < 2
         self._config_meters = config_meters
         self._csv_filepath = None
         self._Pr_grid = None
@@ -59,6 +62,10 @@ class Model:
     @zone_dim_meters.setter
     def zone_dim_meters(self, value:tuple):
         self._zone_dim_meters = value
+        
+    @property
+    def is_triangle(self):
+        return len(self.config_meters) < 2
         
     @property
     def config_meters(self):

@@ -27,6 +27,7 @@ class ViewModel(QObject):
     
     resolution__changed        = pyqtSignal(int)
     zone_dim_meters__changed   = pyqtSignal(tuple)
+    is_triangle__changed       = pyqtSignal(bool)
     config_meters__changed      = pyqtSignal(tuple)
     csv_filepath__changed       = pyqtSignal(str)
     Pr_table__changed          = pyqtSignal(object)
@@ -62,6 +63,12 @@ class ViewModel(QObject):
                                    fset=set__zone_dim_meters,
                                    notify=zone_dim_meters__changed)
     
+    def get__is_triangle(self):
+        return self._model.is_triangle
+    
+    is_triangle = pyqtProperty(bool, fget=get__is_triangle,
+                               notify=is_triangle__changed)
+    
     def get__config_meters(self):
         return self._model.config_meters
     
@@ -69,6 +76,7 @@ class ViewModel(QObject):
         if self._model.config_meters != value:
             self._model.config_meters = value
             self.config_meters__changed.emit(value)
+            self.is_triangle__changed.emit(self._model.is_triangle)
             
     config_meters = pyqtProperty(tuple, fget=get__config_meters,
                                 fset=set__config_meters,

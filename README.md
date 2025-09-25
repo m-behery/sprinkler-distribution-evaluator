@@ -14,13 +14,13 @@ A PyQt5-based tool to **visualize, evaluate, and analyze sprinkler distribution*
 ## Features
 
 - Define **zone dimensions** and **sprinkler configurations** (triangle or rectangle).
-- Import **measured Pr values** from CSV files of **x, y, Pr** columns.
-- View and modify **measured Pr values** in an **interactive grid**, providing a more intuitive interface than standard CSV tables for quick adjustments and visualization.
+- Import **measured Pr values** from CSV/Excel files of **x, y, Pr** columns.
+- View and modify **measured Pr values** in an **interactive grid**, providing a more intuitive interface than standard CSV/Excel tables for quick adjustments and visualization.
 - **3D visualization** of sprinkler distribution using Matplotlib.
 - **Metrics calculation**:
   - Christiansen Uniformity (CU)
   - Distribution Uniformity (DU)
-- Export configuration and Pr tables as CSV.
+- Export configuration and Pr tables as CSV/Excel.
 - Keyboard-controlled **3D plot rotation** (W/A/S/D + Shift for finer control).
 - Adjustable **resolution** for simulations.
 
@@ -71,7 +71,7 @@ python main.py
 1. Set **zone dimensions** (width and height in meters).
 2. Select **sprinkler configuration** (triangle or rectangle) and define dimensions.
 3. Adjust **resolution** for finer or coarser evaluation.
-4. **Import CSV** of Pr measurements (if available).
+4. **Import CSV/Excel** of Pr measurements (if available).
 5. The **3D plots** update automatically with metrics.
 6. Export the **configuration** or **Pr table** using the provided buttons.
 
@@ -97,13 +97,15 @@ root/
 │   ├── view.py          # MVVM's View
 │   ├── viewmodel.py     # MVVM's ViewModel
 │   ├── widgets.py       # Custom widgets (custom spinboxes, headers, 3D canvas)
-│   └── screenshots/     # Folder to store screenshots for documentation
+│   ├── screenshots/     # Folder to store screenshots for documentation
+│   └── icons/     			 # Folder to store icons for the executable
 │
 ├── sprinklers.ipynb     # Experimentation Jupyter notebook
 ├── README.md            # Project description and instructions
 ├── requirements.txt     # Python dependencies for the project
-├── van 18.csv           # Example measured Pr table
-└── van.csv              # Dummy Pr table
+├── van 18.xlsx          # Example measured Pr table (Excel)
+├── van 18.csv           # Example measured Pr table (CSV)
+└── van.csv              # Dummy Pr table (CSV)
 ```
 ---
 
@@ -115,6 +117,7 @@ root/
   * Zone: Width & Height
   * Sprinklers: Configuration and dimensions
   * Measurements: CSV import and step size
+  * Export buttons for CSV/config
 * **Plot Panel**
 
   * Zone 3D surface
@@ -122,7 +125,6 @@ root/
 * **Metrics Panel**
 
   * CU and DU values displayed
-  * Export buttons for CSV/config
 
 ---
 

@@ -126,10 +126,12 @@ class View(QWidget):
         self.Pr_table_groupbox = self._create_Pr_table_groupbox()
         self.parameters_panel.addWidget(self.Pr_table_groupbox)
         
-        self.export_config_button = QPushButton('📑 Export Config')
+        self.parameters_panel.addStretch()
+        
+        self.export_config_button = QPushButton('📑 Save Config')
         self.parameters_panel.addWidget(self.export_config_button)
         
-        self.parameters_panel.addStretch()
+        self.parameters_panel.addSpacing(9)
         
         self.config_tab_widget.addTab(self.parameters_tab, "Parameters")
     
@@ -281,7 +283,7 @@ class View(QWidget):
         
         csv_layout = QHBoxLayout(groupbox)
         self.csv_path_edit = QLineEdit()
-        self.csv_path_edit.setPlaceholderText('Select your CSV file...')
+        self.csv_path_edit.setPlaceholderText('Select your Pr-table file...')
         self.csv_path_edit.setEnabled(False)
         self.csv_browse_button = QPushButton('📝')
         self.csv_browse_button.setFixedSize(32, 32)
@@ -440,6 +442,8 @@ class View(QWidget):
         self.config_dim_a_spinbox.valueChanged.connect(self.on_config_dims_changed)
         self.config_dim_b_spinbox.valueChanged.connect(self.on_config_dims_changed)
         
+        self.config_dim_a_label.setText('Side (m):' if self.viewmodel.is_triangle else 'Width (m):')
+        
         
     def on_param_changed__config_meters(self):
         """
@@ -543,7 +547,14 @@ class View(QWidget):
         value = (w, h)
         self.viewmodel.set__zone_dim_meters(value)
         self.evaluation_timer.start(constants.Evaluation.DELAY_MS)
-
+        
+    @staticmethod
+    def blues_qcolor(normalized_value: float) -> QColor:
+        v = max(0.0, min(1.0, normalized_value))
+        hue = 220                    # blue
+        sat = int(255 * v)           # 0 → white, 255 → blue
+        val = int(255 * (1-v))       # keep full brightness
+        return QColor.fromHsv(hue, sat, val)
 
     @staticmethod
     def format_table_item(value:float, max_value:float):
@@ -561,9 +572,9 @@ class View(QWidget):
         """
         item = QTableWidgetItem(str(float(value)))
         normalized_value = value / (max_value + 1e-3)
-        color = QColor.fromHsv(100, 255, int(255 * normalized_value))
+        color = __class__.blues_qcolor(normalized_value)
         item.setBackground(QBrush(color))
-        if normalized_value < 0.5:
+        if normalized_value > 0.5:
             item.setForeground(QBrush(QColor(255, 255, 255)))
         item.setTextAlignment(Qt.AlignCenter)
         return item
@@ -646,7 +657,7 @@ class View(QWidget):
         old_filepath = self.csv_path_edit.text()
         dialog = QFileDialog(self)
         dialog.setWindowTitle('Select CSV File')
-        dialog.setNameFilter('CSV Files (*.csv);;All Files (*)')
+        dialog.setNameFilter('CSV Files (*.csv);;Excel Files (*.xls *.xlsx)')
         dialog.setOption(QFileDialog.DontUseNativeDialog, True)  # Force Qt dialog
         for button in dialog.findChildren(QPushButton):
             if 'Open' in button.text():

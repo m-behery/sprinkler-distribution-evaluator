@@ -126,30 +126,39 @@ def namespace_equal(ns1, ns2):
             return False
     return True
 
-def read_csv(csv_filepath):
+def read_csv(filepath):
     """
-    Read a CSV file into a numpy array.
+    Read a CSV/Excel file into a numpy array.
 
     Parameters:
-        csv_filepath: Path to the CSV file
+        filepath: Path to the CSV file
 
     Returns:
         np.ndarray: CSV data as a 2D array, or None if loading fails
     """
+    ext = os.path.splitext(filepath)[-1].lower().strip()
+    assert ext in {'.csv', '.xls', '.xlsx'}, 'You must either provide a CSV-file or an Excel-sheet'
     try:
-        table = pd.read_csv(csv_filepath, header=None)
+        if ext == '.csv':
+            table = pd.read_csv(filepath, header=None)
+        else:
+            table = pd.read_excel(filepath, header=None)
         table = table.values
         return table
     except Exception as e:
-        logging.error(f'Failed to load CSV file from "{csv_filepath}.\nError Details: {e}"')
+        logging.error(f'Failed to load CSV file from "{filepath}.\nError Details: {e}"')
         return None
 
 def write_csv(filepath:str, table:np.array):
     """
-    Save a numpy array to a CSV file.
+    Save a numpy array to a CSV/Excel file.
 
     Parameters:
         filepath: Path to save the CSV file
         table: 2D numpy array to save
     """
-    return np.savetxt(filepath, table, delimiter=',')
+    ext = os.path.splitext(filepath)[-1].lower().strip()
+    assert ext in {'.csv', '.xls', '.xlsx'}, 'You must either provide a CSV-file or an Excel-sheet'
+    if ext == '.csv':
+        return np.savetxt(filepath, table, delimiter=',')
+    return pd.DataFrame(table).to_excel(filepath)

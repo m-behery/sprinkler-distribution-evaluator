@@ -52,7 +52,7 @@ class Canvas4ImageAs3D(FigureCanvasQTAgg):
         x_map, y_map = np.meshgrid(x_range, y_range)
     
         self.ax.clear()
-        self.ax.plot_surface(x_map, y_map, image, cmap='viridis', edgecolor='none')
+        self.ax.plot_surface(x_map, y_map, image, cmap='Blues', edgecolor='none')
         self.ax.view_init(*deg_angles)
         self.ax.set_xlabel('x (m)', labelpad=10)
         self.ax.set_ylabel('y (m)', labelpad=10)

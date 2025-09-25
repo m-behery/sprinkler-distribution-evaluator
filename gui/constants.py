@@ -137,15 +137,16 @@ class Themes(StaticClass):
         QPushButton#csv_browse_button:pressed {
             background-color: #c6c8cc;
         }
-
+        
         QPushButton#export_csv_button {
-            background-color: #4caf50;
+            background-color: #0b3d91;
+            color: white;
         }
         QPushButton#export_csv_button:hover {
-            background-color: #45a049;
+            background-color: #072f6b; 
         }
         QPushButton#export_csv_button:pressed {
-            background-color: #388e3c;
+            background-color: #031634;
         }
         
         QPushButton#export_config_button {

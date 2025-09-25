@@ -30,7 +30,9 @@ A PyQt5-based tool to **visualize, evaluate, and analyze sprinkler distribution*
 
 *(Interactive 3D sprinkler distribution)*
 
-![Screenshot](https://github.com/m-behery/sprinkler-distribution-evaluator/blob/main/gui/screenshots/screenshot.png)
+![Screenshot](https://github.com/m-behery/sprinkler-distribution-evaluator/blob/main/gui/screenshots/screenshot_a.png)
+
+![Screenshot](https://github.com/m-behery/sprinkler-distribution-evaluator/blob/main/gui/screenshots/screenshot_b.png)
 
 ---
 

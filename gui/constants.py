@@ -39,7 +39,7 @@ class Cells(StaticClass):
     """
     SIZE: Final          = 40
     MAX_DISPLAYED: Final = 6
-    MIN_DISPLAYED: Final = 3
+    MIN_DISPLAYED: Final = 6
 
 class Themes(StaticClass):
     """

@@ -90,15 +90,6 @@ class View(QWidget):
     def init_ui(self):
         """
         Set up the main user interface for the Sprinkler Distribution Evaluator.
-        
-        Responsibilities:
-        1. Configure window title, size, and main layout.
-        2. Initialize evaluation timer for delayed updates.
-        3. Create left parameter panel with groupboxes for general settings, zone dimensions,
-           sprinkler configuration, and measurements.
-        4. Create right panel with plots and canvases.
-        5. Create rightmost metrics panel for displaying evaluation results.
-        6. Apply object names and stylesheets for theming and styling.
         """
         self.setWindowTitle('💧 Sprinkler Distribution Evaluator')
         
@@ -109,9 +100,19 @@ class View(QWidget):
         self.main_layout = QHBoxLayout(self)
         self.setLayout(self.main_layout)
         
-        self.parameters_panel = QVBoxLayout()
+        # ---------------------------
+        # LEFT PANEL with tabs
+        # ---------------------------
+        config_layout = QVBoxLayout()
+        self.main_layout.addLayout(config_layout)
+        self.config_tab_widget = QTabWidget()
+        config_layout.addWidget(self.config_tab_widget)
+        config_layout.addStretch()
+    
+        # === Tab 1: main parameters ===
+        self.parameters_tab = QWidget()
+        self.parameters_panel = QVBoxLayout(self.parameters_tab)
         self.parameters_panel.setSpacing(12)
-        self.main_layout.addLayout(self.parameters_panel, stretch=1)
         
         self.general_groupbox = self._create_general_groupbox()
         self.parameters_panel.addWidget(self.general_groupbox)
@@ -122,24 +123,51 @@ class View(QWidget):
         self.config_groupbox = self._create_sprinklers_groupbox()
         self.parameters_panel.addWidget(self.config_groupbox)
         
-        self.measurement_groupbox = self._create_measurements_groupbox()
-        self.parameters_panel.addWidget(self.measurement_groupbox)
+        self.Pr_table_groupbox = self._create_Pr_table_groupbox()
+        self.parameters_panel.addWidget(self.Pr_table_groupbox)
         
         self.export_config_button = QPushButton('📑 Export Config')
         self.parameters_panel.addWidget(self.export_config_button)
         
         self.parameters_panel.addStretch()
         
+        self.config_tab_widget.addTab(self.parameters_tab, "Parameters")
+    
+        # === Tab 2: Pr Measurements ===
+        self.Pr_measurements_tab = QWidget()
+        self.Pr_measurements_layout = self._create_Pr_measurements_layout()
+        self.Pr_measurements_tab.setLayout(self.Pr_measurements_layout)
+        
+        self.config_tab_widget.addTab(self.Pr_measurements_tab, "Pr Measurements")
+        
+        # ---------------------------
+        # MIDDLE PLOTS PANEL (with tabs)
+        # ---------------------------
         self.main_layout.addSpacing(24)
         self.plot_panel = QVBoxLayout()
         self.main_layout.addLayout(self.plot_panel, stretch=2)
         
+        # Tab widget for plots
+        self.plot_tab_widget = QTabWidget()
+        self.plot_panel.addWidget(self.plot_tab_widget)
+        
+        # === Tab 1: Zone ===
+        self.zone_tab = QWidget()
+        zone_layout = QVBoxLayout(self.zone_tab)
         self.zone_groupbox_canvas = self._create_canvas_groupbox('Zone')
-        self.plot_panel.addWidget(self.zone_groupbox_canvas)
+        zone_layout.addWidget(self.zone_groupbox_canvas)
+        self.plot_tab_widget.addTab(self.zone_tab, "Zone")
         
+        # === Tab 2: Homogeneous Plot ===
+        self.homogenous_tab = QWidget()
+        homogenous_layout = QVBoxLayout(self.homogenous_tab)
         self.homogenous_groupbox_canvas = self._create_canvas_groupbox('Homogeneous Plot')
-        self.plot_panel.addWidget(self.homogenous_groupbox_canvas)
+        homogenous_layout.addWidget(self.homogenous_groupbox_canvas)
+        self.plot_tab_widget.addTab(self.homogenous_tab, "Homogeneous Plot")
         
+        # ---------------------------
+        # RIGHT METRICS PANEL
+        # ---------------------------
         self.main_layout.addSpacing(8)
         
         self.metrics_panel = QVBoxLayout()
@@ -154,6 +182,9 @@ class View(QWidget):
         
         self.main_layout.addLayout(self.metrics_panel, stretch=0)
         
+        # ---------------------------
+        # Object names + stylesheet
+        # ---------------------------
         self.csv_browse_button.setObjectName('csv_browse_button')
         self.export_csv_button.setObjectName('export_csv_button')
         self.export_config_button.setObjectName('export_config_button')
@@ -236,24 +267,19 @@ class View(QWidget):
         return groupbox
     
     
-    def _create_measurements_groupbox(self):
+    def _create_Pr_table_groupbox(self):
         """
-        Create the 'Pr Measurements' groupbox, including CSV selection, step size,
-        table for Pr values, and an export button.
+        Create the 'Pr Table' groupbox which includes CSV selection.
     
         Components:
         - CSV file selector (disabled QLineEdit + browse button)
-        - Step spinbox for measurement increments
-        - Table with alternating row colors and custom headers
-        - Export table button
     
         Returns:
-            QGroupBox: The assembled 'Pr Measurements' groupbox.
+            QGroupBox: The assembled 'Pr Table' groupbox.
         """
-        groupbox = QGroupBox('Pr Measurements')
-        layout = QVBoxLayout(groupbox)
+        groupbox = QGroupBox('Pr Table')
         
-        csv_layout = QHBoxLayout()
+        csv_layout = QHBoxLayout(groupbox)
         self.csv_path_edit = QLineEdit()
         self.csv_path_edit.setPlaceholderText('Select your CSV file...')
         self.csv_path_edit.setEnabled(False)
@@ -262,31 +288,38 @@ class View(QWidget):
         self.csv_path_edit.setFixedHeight(32)
         csv_layout.addWidget(self.csv_path_edit, stretch=1)
         csv_layout.addWidget(self.csv_browse_button)
-        layout.addLayout(csv_layout)
-        layout.addSpacing(10)
+        return groupbox
         
-        separator = QFrame()
-        separator.setFrameShape(QFrame.HLine)
-        separator.setFrameShadow(QFrame.Sunken)
-        layout.addWidget(separator)
-        layout.addSpacing(10)
+    def _create_Pr_measurements_layout(self):
+        layout = QVBoxLayout()
+        
+        self.Pr_measurements_groupbox = QGroupBox('Pr Measurements')
+        sub_layout = QVBoxLayout(self.Pr_measurements_groupbox)
+        sub_layout.addSpacing(20)
         
         form = QFormLayout()
         self.Pr_step_spinbox = DoubleSpinBox(0.1, 20.0)
         form.addRow('Step (m):', self.Pr_step_spinbox)
-        layout.addLayout(form)
-        layout.addSpacing(15)
+        sub_layout.addLayout(form)
+        
+        sub_layout.addSpacing(46)
         
         self.table = QTableWidget()
         self.table.setAlternatingRowColors(True)
         self.table.setHorizontalHeader(SimpleHeader(self.table))
         self.table.setVerticalHeader(RotatedHeader(self.table))
-        layout.addWidget(self.table)
+        sub_layout.addWidget(self.table)
+        
+        layout.addWidget(self.Pr_measurements_groupbox)
+        
+        layout.addSpacing(6)
         
         self.export_csv_button = QPushButton('📤 Export Table')
         layout.addWidget(self.export_csv_button)
-    
-        return groupbox
+        
+        layout.addStretch()
+        
+        return layout
     
     def _create_canvas_groupbox(self, title: str) -> QGroupBox:
         """
@@ -313,6 +346,7 @@ class View(QWidget):
             self.zone_canvas = canvas
         else:
             self.homogenous_plot_canvas = canvas
+        groupbox.setMinimumHeight(433)
         return groupbox
     
     
@@ -569,12 +603,18 @@ class View(QWidget):
         total_height = display_rows * constants.Cells.SIZE + 21
         total_width  = display_cols * constants.Cells.SIZE + 35
         self.table.setFixedSize(total_width, total_height)
+        self.Pr_measurements_groupbox.setFixedHeight(total_height + 134)
+        self.config_tab_widget.setFixedHeight(total_height + 227)
         
         parameter_panel_width = total_width + 24
         self.general_groupbox.setFixedWidth(parameter_panel_width)
         self.zone_groupbox.setFixedWidth(parameter_panel_width)
         self.config_groupbox.setFixedWidth(parameter_panel_width)
-        self.measurement_groupbox.setFixedWidth(parameter_panel_width)
+        self.Pr_table_groupbox.setFixedWidth(parameter_panel_width)
+        self.Pr_measurements_groupbox.setFixedWidth(parameter_panel_width)
+        self.export_config_button.setFixedWidth(parameter_panel_width)
+        self.export_csv_button.setFixedWidth(parameter_panel_width)
+        self.config_tab_widget.setFixedWidth(parameter_panel_width + 22)
         
         self.table.blockSignals(False)
 
@@ -626,7 +666,8 @@ class View(QWidget):
         Handles key presses to allow setting selected table items to zero
         when the '0' key is pressed.
         """
-        self.zero_input_flag = event.text() == '0'
+        text = event.text()
+        self.zero_input_flag = text == '0'
         if self.zero_input_flag:
             selected_items = self.table.selectedItems()
             self.table.blockSignals(True)
@@ -635,6 +676,9 @@ class View(QWidget):
             self.table.blockSignals(False)
             self.update_Pr_grid()
             self.zero_input_flag = False
+        elif text in 'adAD':
+            self.zone_canvas.keyPressEvent(event)
+            self.homogenous_plot_canvas.keyPressEvent(event)
             
         
     def update_Pr_grid(self):

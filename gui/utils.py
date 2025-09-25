@@ -21,6 +21,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 from configparser import ConfigParser
 from argparse import Namespace
 import os
+import sys
 import numpy as np
 import pandas as pd
 import logging
@@ -74,14 +75,8 @@ class INIParser(ConfigParser):
         Returns the full path to the configuration file (config.ini) located in the
         same directory as this script.
         """
-        try:
-            current_dirpath = os.path.dirname(
-                os.path.abspath(__file__)
-            )
-            return os.path.join(current_dirpath, 'config.ini')
-        except IOError as e:
-            logging.error(f"Failed to write config to {self.config_filepath}: {e}")
-
+        return os.path.abspath('./config.ini')
+    
 def are_instances(type_, *objs):
     """
     Check if all provided objects are instances of the given type.

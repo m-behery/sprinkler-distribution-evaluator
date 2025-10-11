@@ -37,6 +37,8 @@ def Pr_table_to_grid(Pr_table):
     if Pr_table is None:
         return np.zeros((2,2)), 1
     Pr_table = pd.DataFrame(Pr_table)
+    Pr_table.dropna(axis=0, how='all', inplace=True)
+    Pr_table.dropna(axis=1, how='all', inplace=True)
     Pr_grid  = Pr_table.pivot(columns=0, index=1, values=2)
     Pr_step  = Pr_grid.index[:2].diff()[-1]
     Pr_grid  = Pr_grid.values

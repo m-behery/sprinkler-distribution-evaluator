@@ -45,10 +45,11 @@ def main():
     parser.read()
     
     model = Model(
-        resolution      = parser.getint('Display', 'RESOLUTION'),
-        zone_dim_meters = parser.gettuple('Sprinklers', 'ZONE_DIM_METERS'),
-        config_meters    = parser.gettuple('Sprinklers', 'CONFIG_METERS'),
-        csv_filepath     = parser.clean_inline_get('Sprinklers', 'CSV_FILEPATH'),
+        resolution        = parser.getint('Display', 'RESOLUTION'),
+        zone_dim_meters   = parser.gettuple('Sprinklers', 'ZONE_DIM_METERS'),
+        config_meters     = parser.gettuple('Sprinklers', 'CONFIG_METERS'),
+        csv_filepath      = parser.clean_inline_get('Sprinklers', 'CSV_FILEPATH'),
+        snapshots_dirpath = parser.clean_inline_get('Sprinklers', 'SNAPSHOTS_DIRPATH'),
     )
     viewmodel = ViewModel(model)
     view = View(viewmodel, parser)

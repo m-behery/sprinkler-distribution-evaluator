@@ -28,8 +28,9 @@ class ViewModel(QObject):
     resolution__changed        = pyqtSignal(int)
     zone_dim_meters__changed   = pyqtSignal(tuple)
     is_triangle__changed       = pyqtSignal(bool)
-    config_meters__changed      = pyqtSignal(tuple)
-    csv_filepath__changed       = pyqtSignal(str)
+    config_meters__changed     = pyqtSignal(tuple)
+    csv_filepath__changed      = pyqtSignal(str)
+    snapshots_dirpath__changed = pyqtSignal(str)
     Pr_table__changed          = pyqtSignal(object)
     Pr_step__changed           = pyqtSignal(float)
     Pr_grid__changed           = pyqtSignal(object)
@@ -96,6 +97,18 @@ class ViewModel(QObject):
     csv_filepath = pyqtProperty(str, fget=get__csv_filepath,
                                fset=set__csv_filepath,
                                notify=csv_filepath__changed)
+   
+    def get__snapshots_dirpath(self):
+        return self._model.snapshots_dirpath
+   
+    def set__snapshots_dirpath(self, value:str):
+        if self._model.snapshots_dirpath != value:
+            self._model.snapshots_dirpath = value
+            self.snapshots_dirpath__changed.emit(value)
+           
+    snapshots_dirpath = pyqtProperty(str, fget=get__snapshots_dirpath,
+                                    fset=set__snapshots_dirpath,
+                                    notify=snapshots_dirpath__changed)
 
     def get__Pr_table(self):
         return self._model.Pr_table

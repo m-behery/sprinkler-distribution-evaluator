@@ -21,11 +21,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QComboBox, QTableWidgetItem,
     QPushButton, QSlider, QStyledItemDelegate, QHBoxLayout, QGroupBox,
-    QFormLayout, QFrame, QTextEdit, QLineEdit, QFileDialog, QTabWidget, 
+    QFormLayout, QTextEdit, QLineEdit, QFileDialog, QTabWidget, 
 )
 from PyQt5.QtGui import QColor, QBrush, QDoubleValidator
 from PyQt5.QtCore import Qt, QTimer
 import numpy as np
+import os
 
 from viewmodel import ViewModel
 from utils import INIParser
@@ -126,6 +127,9 @@ class View(QWidget):
         self.Pr_table_groupbox = self._create_Pr_table_groupbox()
         self.parameters_panel.addWidget(self.Pr_table_groupbox)
         
+        self.snapshots_groupbox = self._create_snapshots_groupbox()
+        self.parameters_panel.addWidget(self.snapshots_groupbox)
+        
         self.parameters_panel.addStretch()
         
         self.export_config_button = QPushButton('📑 Save Config')
@@ -188,6 +192,7 @@ class View(QWidget):
         # Object names + stylesheet
         # ---------------------------
         self.csv_browse_button.setObjectName('csv_browse_button')
+        self.snapshots_browse_button.setObjectName('snapshots_browse_button')
         self.export_csv_button.setObjectName('export_csv_button')
         self.export_config_button.setObjectName('export_config_button')
         self.metrics_label.setObjectName('metrics_label')
@@ -291,6 +296,31 @@ class View(QWidget):
         csv_layout.addWidget(self.csv_path_edit, stretch=1)
         csv_layout.addWidget(self.csv_browse_button)
         return groupbox
+    
+    
+    def _create_snapshots_groupbox(self):
+        """
+        Create the 'Snapshots' groupbox which includes snapshot directory selection.
+    
+        Components:
+        - Snapshots directory selector (disabled QLineEdit + browse button)
+    
+        Returns:
+            QGroupBox: The assembled 'Pr Table' groupbox.
+        """
+        groupbox = QGroupBox('Snapshots')
+        
+        snapshots_layout = QHBoxLayout(groupbox)
+        self.snapshots_path_edit = QLineEdit()
+        self.snapshots_path_edit.setPlaceholderText('Select your snapshots directory...')
+        self.snapshots_path_edit.setEnabled(False)
+        self.snapshots_browse_button = QPushButton('📝')
+        self.snapshots_browse_button.setFixedSize(32, 32)
+        self.snapshots_path_edit.setFixedHeight(32)
+        snapshots_layout.addWidget(self.snapshots_path_edit, stretch=1)
+        snapshots_layout.addWidget(self.snapshots_browse_button)
+        return groupbox
+    
         
     def _create_Pr_measurements_layout(self):
         layout = QVBoxLayout()
@@ -395,6 +425,7 @@ class View(QWidget):
         self._bind_zone_dimensions()
         self._bind_config()
         self._bind_csv_path()
+        self._bind_snapshots_path()
         self._bind_Pr_step()
         self._bind_Pr_table()
         self._bind_exports()
@@ -503,6 +534,16 @@ class View(QWidget):
         )
         self.viewmodel.csv_filepath__changed.emit(self.viewmodel.csv_filepath)
         self.csv_browse_button.clicked.connect(self.select_csv_file)
+    
+    
+    def _bind_snapshots_path(self):
+        """
+        Bind snapshots directory path input and browse button.
+        """
+        self.snapshots_path_edit.textChanged.connect(self.viewmodel.set__snapshots_dirpath)
+        self.viewmodel.snapshots_dirpath__changed.connect(self.snapshots_path_edit.setText)
+        self.viewmodel.snapshots_dirpath__changed.emit(self.viewmodel.snapshots_dirpath)
+        self.snapshots_browse_button.clicked.connect(self.select_snapshots_directory)
     
     
     def _bind_Pr_step(self):
@@ -615,7 +656,7 @@ class View(QWidget):
         total_width  = display_cols * constants.Cells.SIZE + 35
         self.table.setFixedSize(total_width, total_height)
         self.Pr_measurements_groupbox.setFixedHeight(total_height + 134)
-        self.config_tab_widget.setFixedHeight(total_height + 227)
+        self.config_tab_widget.setFixedHeight(total_height + 330)
         
         parameter_panel_width = total_width + 24
         self.general_groupbox.setFixedWidth(parameter_panel_width)
@@ -652,7 +693,7 @@ class View(QWidget):
     def select_csv_file(self):
         """
         Open a file dialog for the user to select a CSV file.
-        If a file is selected, update the CSV path QLineEdit.
+        If a file is selected, update the CSV path's QLineEdit.
         """
         old_filepath = self.csv_path_edit.text()
         dialog = QFileDialog(self)
@@ -661,7 +702,7 @@ class View(QWidget):
         dialog.setOption(QFileDialog.DontUseNativeDialog, True)  # Force Qt dialog
         for button in dialog.findChildren(QPushButton):
             if 'Open' in button.text():
-                button.setText('Select')
+                button.setText('Choose')
             else:
                 button.setText('Cancel')
             button.setStyleSheet('color: black')
@@ -670,6 +711,24 @@ class View(QWidget):
             if filepath == old_filepath:
                 self.csv_path_edit.setText('')
             self.csv_path_edit.setText(filepath)
+            
+            
+    def select_snapshots_directory(self):
+        """
+        Open a file dialog for the user to select a snapshot saving directory.
+        If a file is selected, update the snapshots directory path's QLineEdit.
+        """
+        old_dirpath = self.snapshots_path_edit.text()
+        dialog = QFileDialog(self, caption='Select Snapshots Directory')
+        dialog.setFileMode(QFileDialog.Directory)
+        dialog.setOption(QFileDialog.DontUseNativeDialog, True)  # Force Qt dialog
+        for button in dialog.findChildren(QPushButton):
+            button.setStyleSheet('color: black')
+        if dialog.exec() == QFileDialog.Accepted:
+            dirpath = dialog.selectedFiles()[0]
+            if dirpath == old_dirpath:
+                self.snapshots_path_edit.setText('')
+            self.snapshots_path_edit.setText(dirpath)
         
         
     def keyPressEvent(self, event):
@@ -687,7 +746,16 @@ class View(QWidget):
             self.table.blockSignals(False)
             self.update_Pr_grid()
             self.zero_input_flag = False
-        elif text in 'adAD':
+        elif (event.modifiers() & Qt.ControlModifier) and event.key() == Qt.Key_S:
+            csv_filename = os.path.basename(self.viewmodel.csv_filepath)
+            tablename = os.path.splitext(csv_filename)[0]
+            str_elev = 'elev_' + ('' if self.zone_canvas.ax.elev > 0 else '(') + str(abs(self.zone_canvas.ax.elev)) + ('' if self.zone_canvas.ax.elev > 0 else ')')
+            str_azim = 'azim_' + ('' if self.zone_canvas.ax.azim > 0 else '(') + str(abs(self.zone_canvas.ax.azim)) + ('' if self.zone_canvas.ax.azim > 0 else ')')
+            snapshots_dirpath = self.snapshots_path_edit.text()
+            png_filepath_stem = os.path.join(snapshots_dirpath, f'{tablename}__{str_elev}__{str_azim}')
+            self.zone_canvas.export_png(f'{png_filepath_stem}__zone.png')
+            self.homogenous_plot_canvas.export_png(f'{png_filepath_stem}__plot.png')
+        elif text in 'adADwsWS':
             self.zone_canvas.keyPressEvent(event)
             self.homogenous_plot_canvas.keyPressEvent(event)
             
@@ -754,10 +822,10 @@ class View(QWidget):
             f'Distribution Uniformity (DU): {result.metrics.DU:.2f} %\n'
         )
         self.metrics_textbox.setPlainText(metrics_text)
-    
+        
         # --- Update plots ---
-        self.zone_canvas.plot(result.zone, self.viewmodel.resolution, (45, 45))
-        self.homogenous_plot_canvas.plot(result.homogenous_plot, self.viewmodel.resolution, (45, 45))
+        self.zone_canvas.plot(result.zone, self.viewmodel.resolution, (45, -135))
+        self.homogenous_plot_canvas.plot(result.homogenous_plot, self.viewmodel.resolution, (45, -135))
 
 
     def export_config(self):
@@ -770,4 +838,5 @@ class View(QWidget):
         self.config_parser.set('Sprinklers', 'ZONE_DIM_METERS', serialize_floats(self.viewmodel.zone_dim_meters))
         self.config_parser.set('Sprinklers', 'CONFIG_METERS', serialize_floats(self.viewmodel.config_meters))
         self.config_parser.set('Sprinklers', 'CSV_FILEPATH', self.viewmodel.csv_filepath)
+        self.config_parser.set('Sprinklers', 'SNAPSHOTS_DIRPATH', self.viewmodel.snapshots_dirpath)
         self.config_parser.write()

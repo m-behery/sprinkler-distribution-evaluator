@@ -124,17 +124,17 @@ class Themes(StaticClass):
             color: white;
         }
         
-        QPushButton#csv_browse_button {
+        QPushButton#csv_browse_button, QPushButton#snapshots_browse_button {
             qproperty-iconSize: 16px;
             border: 1px solid #c8cace;
             border-radius: 4px;
             background-color: #e6e8eb;
             color: #111;
         }
-        QPushButton#csv_browse_button:hover {
+        QPushButton#csv_browse_button:hover, QPushButton#snapshots_browse_button:hover {
             background-color: #d6d8db;
         }
-        QPushButton#csv_browse_button:pressed {
+        QPushButton#csv_browse_button:pressed, QPushButton#snapshots_browse_button:pressed {
             background-color: #c6c8cc;
         }
         

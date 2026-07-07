@@ -21,7 +21,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 from configparser import ConfigParser
 from argparse import Namespace
 import os
-import sys
 import numpy as np
 import pandas as pd
 import logging

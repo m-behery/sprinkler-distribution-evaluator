@@ -24,6 +24,7 @@ from PyQt5.QtWidgets import QHeaderView, QDoubleSpinBox
 from PyQt5.QtCore import Qt
 import numpy as np
 import constants
+import os
 
 class Canvas4ImageAs3D(FigureCanvasQTAgg):
     """
@@ -81,14 +82,20 @@ class Canvas4ImageAs3D(FigureCanvasQTAgg):
         degrees = 1 if event.modifiers() & Qt.ShiftModifier else 5
         match event.key():
             case Qt.Key_W:
-                self.ax.elev += degrees
-            case Qt.Key_S:
                 self.ax.elev -= degrees
+            case Qt.Key_S:
+                self.ax.elev += degrees
             case Qt.Key_A:
-                self.ax.azim -= degrees
-            case Qt.Key_D:
                 self.ax.azim += degrees
+            case Qt.Key_D:
+                self.ax.azim -= degrees
         self.draw()
+        
+    def export_png(self, filepath):
+        filepath = os.path.abspath(filepath)
+        dirpath = os.path.dirname(filepath)
+        os.makedirs(dirpath, exist_ok=True)
+        self.figure.savefig(filepath, dpi=300, bbox_inches='tight')
         
 class DoubleSpinBox(QDoubleSpinBox):
     """

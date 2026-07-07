@@ -24,7 +24,7 @@ from sprinklers import Pr_table_to_grid, Pr_grid_to_table
 
 class Model:
     
-    def __init__(self, resolution, zone_dim_meters, config_meters, csv_filepath):
+    def __init__(self, resolution, zone_dim_meters, config_meters, csv_filepath, snapshots_dirpath):
         
         assert 0 < len(config_meters) <= 2, 'config_meters can either have 1 (i.e. triangular) or 2 (i.e. rectangluar) dimensions.'
         
@@ -33,6 +33,7 @@ class Model:
         self._is_triangle = len(config_meters) < 2
         self._config_meters = config_meters
         self._csv_filepath = None
+        self._snapshots_dirpath = snapshots_dirpath
         self._Pr_grid = None
         self._Pr_step = None
         self._evaluation_result = None
@@ -83,6 +84,14 @@ class Model:
     def csv_filepath(self, value:str):
         self._csv_filepath = value
         self.Pr_table = read_csv(value)
+        
+    @property
+    def snapshots_dirpath(self):
+        return self._snapshots_dirpath
+    
+    @snapshots_dirpath.setter
+    def snapshots_dirpath(self, value:str):
+        self._snapshots_dirpath = value
     
     @property
     def Pr_table(self):

@@ -81,13 +81,13 @@ class Canvas4ImageAs3D(FigureCanvasQTAgg):
         """
         degrees = 1 if event.modifiers() & Qt.ShiftModifier else 5
         match event.key():
-            case Qt.Key_W:
+            case Qt.Key_Up:
                 self.ax.elev -= degrees
-            case Qt.Key_S:
+            case Qt.Key_Down:
                 self.ax.elev += degrees
-            case Qt.Key_A:
+            case Qt.Key_Left:
                 self.ax.azim += degrees
-            case Qt.Key_D:
+            case Qt.Key_Right:
                 self.ax.azim -= degrees
         self.draw()
         

@@ -239,12 +239,11 @@ def Pr_zone_to_homogenous_plot(Pr_zone, sliding_window, is_triangle):
         homogenous_plot (np.ndarray): Subsection of Pr_zone representing one repeatable unit.
     """
     window_h, window_w = sliding_window.shape
+    zone_center = np.array(Pr_zone.shape) // 2
     if is_triangle:
-        halfwindow_h = window_h // 2
-        window_halfw = window_w // 2
-        homogenous_plot = Pr_zone[:halfwindow_h, window_halfw : window_w + window_halfw]
-    else:
-        homogenous_plot = Pr_zone[:window_h, :window_w]
+        window_h //= 2
+    offset = zone_center - np.array([window_h, window_w]) // 2
+    homogenous_plot = Pr_zone[offset[0]:offset[0]+window_h , offset[1]:offset[1]+window_w]
     return homogenous_plot
     
 def compute_DU(Pr_homogenous_plot):

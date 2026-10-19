@@ -94,9 +94,13 @@ class View(QWidget):
         """
         self.setWindowTitle('💧 Sprinkler Distribution Evaluator')
         
+        self.evaluationreset_timer = QTimer(self)
+        self.evaluationreset_timer.setSingleShot(True)
+        self.evaluationreset_timer.timeout.connect(lambda: self.update_evaluation_result(True))
+        
         self.evaluation_timer = QTimer(self)
         self.evaluation_timer.setSingleShot(True)
-        self.evaluation_timer.timeout.connect(self.update_evaluation_result)
+        self.evaluation_timer.timeout.connect(lambda: self.update_evaluation_result(False))
         
         self.main_layout = QHBoxLayout(self)
         self.setLayout(self.main_layout)
@@ -119,6 +123,7 @@ class View(QWidget):
         self.parameters_panel.addWidget(self.general_groupbox)
         
         self.zone_groupbox = self._create_zone_groupbox()
+        self.zone_groupbox.setVisible(False)
         self.parameters_panel.addWidget(self.zone_groupbox)
         
         self.config_groupbox = self._create_sprinklers_groupbox()
@@ -430,6 +435,8 @@ class View(QWidget):
         self._bind_Pr_table()
         self._bind_exports()
         
+        self.on_config_dims_changed()
+        
         
     def _bind_resolution(self):
         """
@@ -514,10 +521,14 @@ class View(QWidget):
         - For triangle configuration, only the first dimension (side) is used.
         - For rectangle configuration, both width and height are used.
         """
-        a = self.config_dim_a_spinbox.value()
-        b = self.config_dim_b_spinbox.value()
-        value = (a, b) if self.config_dim_b_spinbox.isVisible() else (a,)
-        self.viewmodel.set__config_meters(value)
+        a, b = self.config_dim_a_spinbox.value(), self.config_dim_b_spinbox.value()
+        is_rect = self.config_dim_b_spinbox.isVisible()
+        self.viewmodel.set__config_meters((a, b) if is_rect else (a,))
+        window_w = a
+        window_h = b if is_rect else (2 * 0.866 * a)
+        self.viewmodel.set__zone_dim_meters(
+            tuple(map(lambda x: constants.Evaluation.ZONE_MULT * x, [window_w, window_h]))
+        )
         self.evaluation_timer.start(constants.Evaluation.DELAY_MS)
     
     
@@ -529,7 +540,7 @@ class View(QWidget):
         self.viewmodel.csv_filepath__changed.connect(
             lambda value: (
                 self.csv_path_edit.setText(value),
-                self.evaluation_timer.start(constants.Evaluation.DELAY_MS),
+                self.evaluationreset_timer.start(constants.Evaluation.DELAY_MS),
             )
         )
         self.viewmodel.csv_filepath__changed.emit(self.viewmodel.csv_filepath)
@@ -801,7 +812,7 @@ class View(QWidget):
         self.evaluation_timer.start(constants.Evaluation.DELAY_MS)
         
         
-    def update_evaluation_result(self):
+    def update_evaluation_result(self, reset_angles:bool=False):
         """
         Evaluates the current sprinkler configuration and updates
         the ViewModel, metrics display, and plots.
@@ -824,8 +835,9 @@ class View(QWidget):
         self.metrics_textbox.setPlainText(metrics_text)
         
         # --- Update plots ---
-        self.zone_canvas.plot(result.zone, self.viewmodel.resolution, (45, -135))
-        self.homogenous_plot_canvas.plot(result.homogenous_plot, self.viewmodel.resolution, (45, -135))
+        deg_angles = constants.Evaluation.DEG_ANGLES if reset_angles else None
+        self.zone_canvas.plot(result.zone, self.viewmodel.resolution, deg_angles)
+        self.homogenous_plot_canvas.plot(result.homogenous_plot, self.viewmodel.resolution, deg_angles)
 
 
     def export_config(self):

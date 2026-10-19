@@ -32,6 +32,8 @@ class Evaluation(StaticClass):
     Evaluation-related constants.
     """
     DELAY_MS: Final = 1000
+    DEG_ANGLES: Final = (45, -135)
+    ZONE_MULT: Final = 10
     
 class Cells(StaticClass):
     """

@@ -38,7 +38,7 @@ class Canvas4ImageAs3D(FigureCanvasQTAgg):
         self.setFocusPolicy(Qt.StrongFocus)
         self.setMinimumWidth(minimum_width)
         
-    def plot(self, image, resolution, deg_angles):
+    def plot(self, image, resolution, deg_angles=None):
         """
         Render a 3D surface plot from a 2D image array with proper axis scaling.
     
@@ -46,7 +46,7 @@ class Canvas4ImageAs3D(FigureCanvasQTAgg):
             image: 2D numpy array representing Pr values
             resolution: spatial resolution in meters per pixel
             deg_angles: tuple (elev, azim) for initial viewing angles in degrees
-        """
+        """            
         h, w = image.shape
         x_range = np.arange(w) / resolution
         y_range = np.arange(h) / resolution
@@ -54,7 +54,8 @@ class Canvas4ImageAs3D(FigureCanvasQTAgg):
     
         self.ax.clear()
         self.ax.plot_surface(x_map, y_map, image, cmap='Blues', edgecolor='none')
-        self.ax.view_init(*deg_angles)
+        if deg_angles:
+            self.ax.view_init(*deg_angles)
         self.ax.set_xlabel('x (m)', labelpad=10)
         self.ax.set_ylabel('y (m)', labelpad=10)
         self.ax.set_zlabel('Pr (mm/hr)', labelpad=10)

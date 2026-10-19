@@ -243,6 +243,7 @@ def Pr_zone_to_homogenous_plot(Pr_zone, sliding_window, is_triangle):
     if is_triangle:
         window_h //= 2
     offset = zone_center - np.array([window_h, window_w]) // 2
+    offset += (window_h // 2, 0) if is_triangle else (window_h // 2, window_w // 2)
     homogenous_plot = Pr_zone[offset[0]:offset[0]+window_h , offset[1]:offset[1]+window_w]
     return homogenous_plot
     

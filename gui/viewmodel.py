@@ -56,7 +56,7 @@ class ViewModel(QObject):
         return self._model.zone_dim_meters
     
     def set__zone_dim_meters(self, value:tuple):
-        if self._model.zone_dim_meters != value:
+        if any(np.array(self._model.zone_dim_meters) != value):
             self._model.zone_dim_meters = value
             self.zone_dim_meters__changed.emit(value)
             

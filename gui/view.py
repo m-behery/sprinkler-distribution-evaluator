@@ -167,7 +167,7 @@ class View(QWidget):
         zone_layout = QVBoxLayout(self.zone_tab)
         self.zone_groupbox_canvas = self._create_canvas_groupbox('Zone')
         zone_layout.addWidget(self.zone_groupbox_canvas)
-        self.plot_tab_widget.addTab(self.zone_tab, "Zone")
+        # self.plot_tab_widget.addTab(self.zone_tab, "Zone")
         
         # === Tab 2: Homogeneous Plot ===
         self.homogenous_tab = QWidget()
